@@ -1,0 +1,32 @@
+# ─── Core Framework ───────────────────────────────────────────
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+websockets==14.2
+python-dotenv==1.1.0
+pydantic==2.11.4
+httpx==0.28.1
+
+# ─── LLM & Agents ─────────────────────────────────────────────
+langchain-core==0.3.59
+langchain-groq==0.3.2
+langgraph==0.4.3
+langgraph-checkpoint-sqlite==2.0.10
+
+# ─── Data Providers ───────────────────────────────────────────
+requests==2.32.3
+ccxt==4.4.80
+pandas==2.2.3
+yfinance==0.2.61
+stockstats==0.6.2
+
+# ─── Memory & Storage ─────────────────────────────────────────
+chromadb==0.6.3
+aiosqlite==0.21.0
+
+# ─── Alerts ───────────────────────────────────────────────────
+python-telegram-bot==21.11.1
+aiohttp==3.11.18
+
+# ─── Utilities ────────────────────────────────────────────────
+rich==14.0.0
+tqdm==4.67.1
