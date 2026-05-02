@@ -1,27 +1,36 @@
 """
 Quorum — Groq LLM Client
-Creates ChatGroq instances with rate-limit-resilient wrapper.
+Creates ChatGroq instances with rate-limit-resilient wrapper and per-call timeout.
 """
 
 import asyncio
 import random
 import logging
 from langchain_groq import ChatGroq
-from config import GROQ_API_KEY, DEEP_THINK_MODEL, QUICK_THINK_MODEL, LLM_TEMPERATURE, LLM_MAX_RETRIES
+from config import (
+    GROQ_API_KEY,
+    DEEP_THINK_MODEL,
+    QUICK_THINK_MODEL,
+    LLM_TEMPERATURE,
+    LLM_MAX_RETRIES,
+    LLM_TIMEOUT,
+    LLM_CONCURRENCY,
+)
 
 logger = logging.getLogger("quorum.llm")
 
-# Global semaphore to limit concurrent LLM calls (prevents burst 429s)
-_llm_semaphore = asyncio.Semaphore(2)
+# Global semaphore — limits concurrent LLM calls to prevent burst 429s
+_llm_semaphore = asyncio.Semaphore(LLM_CONCURRENCY)
 
 
 class RateLimitedLLM:
-    """Wrapper around ChatGroq that handles rate-limit errors with exponential backoff.
-    
+    """Wrapper around ChatGroq with rate-limit backoff, per-call timeout, and empty-response guard.
+
     Features:
     - Catches 429 / RateLimitError and retries with exponential backoff + jitter
-    - Uses a global semaphore to limit concurrent API calls
-    - Logs retry attempts with wait durations
+    - Per-call timeout via asyncio.wait_for (prevents indefinite hangs)
+    - Validates that the LLM returned non-empty content
+    - Global semaphore limits concurrent API calls
     """
 
     def __init__(self, llm: ChatGroq, max_retries: int = 5, base_delay: float = 5.0):
@@ -30,57 +39,70 @@ class RateLimitedLLM:
         self._base_delay = base_delay
 
     async def ainvoke(self, messages, **kwargs):
-        """Rate-limit-aware async invoke with exponential backoff."""
+        """Rate-limit-aware async invoke with exponential backoff and timeout."""
         last_error = None
 
         for attempt in range(self._max_retries + 1):
             async with _llm_semaphore:
                 try:
-                    return await self._llm.ainvoke(messages, **kwargs)
-                except Exception as e:
-                    error_str = str(e).lower()
-                    is_rate_limit = (
-                        "rate_limit" in error_str
-                        or "rate limit" in error_str
-                        or "429" in error_str
-                        or "too many requests" in error_str
-                        or "resource_exhausted" in error_str
-                        or "tokens per minute" in error_str
-                        or "requests per minute" in error_str
+                    response = await asyncio.wait_for(
+                        self._llm.ainvoke(messages, **kwargs),
+                        timeout=LLM_TIMEOUT,
                     )
 
+                    # Guard against empty responses
+                    if not response or not getattr(response, "content", "").strip():
+                        raise ValueError("LLM returned an empty response")
+
+                    return response
+
+                except asyncio.TimeoutError:
+                    logger.error(
+                        f"LLM call timed out after {LLM_TIMEOUT}s "
+                        f"(attempt {attempt + 1}/{self._max_retries})"
+                    )
+                    last_error = TimeoutError(f"LLM call exceeded {LLM_TIMEOUT}s timeout")
+                    if attempt < self._max_retries:
+                        await asyncio.sleep(self._base_delay)
+                    continue
+
+                except Exception as e:
+                    error_str = str(e).lower()
+                    is_rate_limit = any(kw in error_str for kw in (
+                        "rate_limit", "rate limit", "429",
+                        "too many requests", "resource_exhausted",
+                        "tokens per minute", "requests per minute",
+                    ))
+
                     if not is_rate_limit:
-                        raise  # Not a rate-limit error, re-raise immediately
+                        raise  # Non-rate-limit errors bubble up immediately
 
                     last_error = e
 
                     if attempt < self._max_retries:
-                        # Exponential backoff: 5s, 10s, 20s, 40s, 80s + random jitter
                         delay = self._base_delay * (2 ** attempt) + random.uniform(0, 2)
                         logger.warning(
-                            f"⏳ Rate limit hit (attempt {attempt + 1}/{self._max_retries}), "
-                            f"waiting {delay:.1f}s before retry..."
+                            f"Rate limit hit (attempt {attempt + 1}/{self._max_retries}), "
+                            f"retrying in {delay:.1f}s..."
                         )
                         await asyncio.sleep(delay)
                     else:
                         logger.error(
-                            f"❌ Rate limit exceeded after {self._max_retries} retries. "
-                            f"Last error: {e}"
+                            f"Rate limit exceeded after {self._max_retries} retries: {e}"
                         )
 
         raise last_error
 
     def invoke(self, messages, **kwargs):
-        """Synchronous invoke (falls through to underlying LLM)."""
+        """Synchronous invoke — falls through to underlying LLM."""
         return self._llm.invoke(messages, **kwargs)
 
     def __getattr__(self, name):
-        """Proxy all other attributes to the underlying LLM."""
         return getattr(self._llm, name)
 
 
 def create_deep_thinker() -> RateLimitedLLM:
-    """Create the deep-thinking LLM (complex reasoning, debates, final decisions)."""
+    """Deep-thinking LLM for complex reasoning, debates, and final decisions."""
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
         model=DEEP_THINK_MODEL,
@@ -91,7 +113,7 @@ def create_deep_thinker() -> RateLimitedLLM:
 
 
 def create_quick_thinker() -> RateLimitedLLM:
-    """Create the quick-thinking LLM (analysts, data processing)."""
+    """Fast LLM for analyst data processing."""
     llm = ChatGroq(
         api_key=GROQ_API_KEY,
         model=QUICK_THINK_MODEL,
