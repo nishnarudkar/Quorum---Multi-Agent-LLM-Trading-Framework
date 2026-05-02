@@ -1,310 +1,236 @@
-<p align="center">
-  <h1 align="center">🧠 Quorum</h1>
-  <p align="center"><strong>Multi-Agent LLM Trading Framework</strong></p>
-  <p align="center">
-    An AI-powered stock & crypto analysis platform where specialized LLM agents collaborate through structured adversarial debates to produce investment recommendations.
-  </p>
-</p>
+# Quorum
 
-<p align="center">
-  <img src="https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white" alt="Python" />
-  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js" />
-  <img src="https://img.shields.io/badge/LangGraph-Agent%20Pipeline-green" alt="LangGraph" />
-  <img src="https://img.shields.io/badge/Groq-Kimi%20K2-orange" alt="Groq" />
-  <img src="https://img.shields.io/badge/license-MIT-purple" alt="License" />
-</p>
+**Multi-Agent LLM Trading Framework**
+
+Quorum is an AI-powered stock and crypto analysis platform that orchestrates 13 specialized LLM agents through a structured multi-stage pipeline. Agents run in parallel, engage in adversarial debates, and pass through a risk committee before producing a final trade recommendation — mimicking the decision structure of a professional trading desk.
 
 ---
 
-## 📖 Overview
+## Overview
 
-Quorum is **not** a single-prompt trading bot. It orchestrates **13 specialized AI agents** through a multi-stage pipeline with parallel execution, adversarial debates, and adaptive confidence scoring — mimicking the structure of a real trading desk:
+Most AI trading tools reduce the problem to a single prompt. Quorum treats it as a deliberation problem. Each analysis runs through four distinct phases:
 
-| Role               | Agents | What they do |
-|:-------------------|:------:|:-------------|
-| **Analysts**       | 4      | Gather & interpret market data, sentiment, news, and fundamentals — all running *in parallel* |
-| **Researchers**    | 3      | Bull & Bear advocates debate the evidence; a Research Judge delivers a verdict |
-| **Trader**         | 1      | Converts the research thesis into a concrete trade plan with entry, target, stop-loss, and position sizing |
-| **Risk Committee** | 5      | Aggressive, Conservative, and Neutral risk analysts debate the trade; a CRO Judge makes the final risk-adjusted decision |
+| Phase | Agents | Role |
+|:------|:------:|:-----|
+| Analysis | 4 | Market, sentiment, news, and fundamentals analysts run in parallel |
+| Research Debate | 3 | Bull and Bear researchers argue the evidence; a Research Judge delivers a verdict |
+| Trade Planning | 1 | Trader agent converts the thesis into a concrete plan with entry, target, stop-loss, and sizing |
+| Risk Committee | 5 | Aggressive, Conservative, and Neutral analysts debate the trade; a CRO Judge makes the final call |
 
-The entire flow is compiled into a single **LangGraph** state machine and executed asynchronously, with results streamed to the frontend in real-time via WebSockets.
+The entire flow is compiled into a LangGraph state machine and executed asynchronously, with results streamed to the frontend in real-time via WebSockets.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
-### High-Level Pipeline
+### Agent Pipeline
 
 ```
-                          ┌──────────────────┐
-                          │   User Request    │
-                          │  (ticker + type)  │
-                          └────────┬─────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              │                    │                     │
-     ┌────────▼────────┐ ┌────────▼────────┐  ┌────────▼─────────┐
-     │  Market Analyst  │ │Sentiment Analyst│  │   News Analyst   │
-     │  (technicals,    │ │  (social buzz,  │  │  (headlines,     │
-     │   price action)  │ │   market mood)  │  │   press, filings)│
-     └────────┬────────┘ └────────┬────────┘  └────────┬─────────┘
-              │                    │                     │
-              │         ┌─────────▼─────────┐           │
-              │         │ Fundamentals       │           │
-              │         │  Analyst (P/E,     │           │
-              │         │  revenue, margins) │           │
-              │         └─────────┬─────────┘           │
-              │                   │                      │
-              └───────────────────┼──────────────────────┘
-                                  │  (parallel fan-out / merge)
-                                  ▼
-                    ┌─────────────────────────────┐
-                    │    📊 Merge Analyst Reports  │
-                    └──────────────┬──────────────┘
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │     🐂 Bull Researcher       │◄──┐
-                    │   (builds bullish case)       │   │
-                    └──────────────┬───────────────┘   │
-                                   │                    │  debate
-                    ┌──────────────▼──────────────┐    │  loop
-                    │     🐻 Bear Researcher       │   │  (2 rounds)
-                    │   (builds bearish case)       │───┘
-                    └──────────────┬───────────────┘
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │     ⚖️  Research Judge        │
-                    │  (verdict + thesis + conf.)  │
-                    └──────────────┬───────────────┘
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │     💰 Trader Agent           │
-                    │  (action, entry, target,     │
-                    │   stop-loss, position size)   │
-                    └──────────────┬───────────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              │                    │                     │
-     ┌────────▼────────┐ ┌────────▼────────┐  ┌────────▼─────────┐
-     │   🔥 Aggressive  │ │   🛡️ Conservative│  │   ⚖️ Neutral     │
-     │   Risk Analyst   │ │   Risk Analyst  │  │   Risk Analyst   │◄─┐
-     └────────┬────────┘ └────────┬────────┘  └────────┬─────────┘  │
-              │                    │                     │  risk      │
-              └────────────────────┼────────────────────┘  debate    │
-                                   │                       loop     │
-                                   │                       (2 rds)  │
-                    ┌──────────────▼──────────────┐                 │
-                    │     🏛️  Risk Judge (CRO)     │─────────────────┘
-                    │  (approved / modified /      │
-                    │   rejected + final sizing)   │
-                    └──────────────┬───────────────┘
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │     ✅ Final Trade Decision   │
-                    └─────────────────────────────┘
+                        User Request (ticker + asset type)
+                                       |
+              ┌────────────────────────┼────────────────────────┐
+              |                        |                         |
+       Market Analyst          Sentiment Analyst           News Analyst
+       (technicals,            (social buzz,               (headlines,
+        price action)           market mood)                filings)
+              |                        |                         |
+              |              Fundamentals Analyst                |
+              |              (P/E, revenue, margins)             |
+              |                        |                         |
+              └────────────────────────┼─────────────────────────┘
+                                       |  parallel fan-out / merge
+                                       |
+                              Merge Analyst Reports
+                                       |
+                              Bull Researcher  <──┐
+                              (bullish case)      |  debate loop
+                                       |          |  (2 rounds)
+                              Bear Researcher  ───┘
+                              (bearish case)
+                                       |
+                              Research Judge
+                              (verdict + thesis + confidence)
+                                       |
+                              Trader Agent
+                              (action, entry, target, stop-loss, sizing)
+                                       |
+              ┌────────────────────────┼────────────────────────┐
+              |                        |                         |
+       Aggressive Analyst      Conservative Analyst      Neutral Analyst  <──┐
+              |                        |                         |  risk loop  |
+              └────────────────────────┼─────────────────────────┘  (2 rounds) |
+                                       |                                        |
+                              Risk Judge (CRO)  ──────────────────────────────┘
+                              (approve / modify / reject)
+                                       |
+                              Final Trade Decision
 ```
 
 ### System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                            FRONTEND (Next.js 16)                        │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────┐  ┌──────────────┐   │
-│  │  Dashboard    │  │  Agents View │  │  Trades  │  │  Settings    │   │
-│  │  (live data,  │  │  (agent      │  │  History │  │              │   │
-│  │   charts,     │  │   reasoning, │  │          │  │              │   │
-│  │   portfolio)  │  │   debates)   │  │          │  │              │   │
-│  └──────┬───────┘  └──────┬───────┘  └────┬─────┘  └──────────────┘   │
-│         │                  │               │                            │
-│         └──────────────────┼───────────────┘                            │
-│                            │ WebSocket + REST                           │
-└────────────────────────────┼────────────────────────────────────────────┘
-                             │
-┌────────────────────────────┼────────────────────────────────────────────┐
-│                     BACKEND (FastAPI)                                    │
-│                            │                                            │
-│  ┌─────────────────────────▼──────────────────────────────────┐        │
-│  │                   API Layer (api/main.py)                   │        │
-│  │  REST: /analyze, /portfolio, /trades, /price, /indicators   │        │
-│  │  WS:   /ws/live (real-time broadcast)                       │        │
-│  └───────────────────────────┬────────────────────────────────┘        │
-│                              │                                          │
-│  ┌───────────────────────────▼────────────────────────────────┐        │
-│  │            LangGraph Pipeline (graph/pipeline.py)           │        │
-│  │  Compiles all agent nodes into a DAG with conditional edges │        │
-│  └───────────────────────────┬────────────────────────────────┘        │
-│                              │                                          │
-│  ┌───────────┬───────────────┼───────────────┬───────────────┐         │
-│  │           │               │               │               │         │
-│  │  Analysts │  Researchers  │    Trader     │ Risk Debaters │         │
-│  │  (4 LLM   │  (Bull, Bear, │  (trade plan │ (Agg, Cons,   │         │
-│  │   nodes)  │   Judge)      │   generator) │  Neutral,     │         │
-│  │           │               │              │  Risk Judge)   │         │
-│  └───────────┴───────────────┴──────────────┴───────────────┘          │
-│                              │                                          │
-│  ┌──────────────┬────────────┼────────────┬──────────────────┐         │
-│  │  LLM Client  │  Data      │  Memory    │  Confidence      │         │
-│  │  (Groq +     │  Providers │  Layer     │  Tracker         │         │
-│  │   rate-limit  │ (yfinance, │ (ChromaDB, │ (EMA weights,   │         │
-│  │   backoff)   │  CCXT)     │  SQLite)   │  Kelly sizing)   │         │
-│  └──────────────┴────────────┴────────────┴──────────────────┘         │
-└─────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Frontend (Next.js 16)                        │
+│                                                                      │
+│   Dashboard        Agents View        Trade History       Settings   │
+│   (live data,      (reasoning,        (records,                      │
+│    charts,          debates)           P&L)                          │
+│    portfolio)                                                         │
+│                                                                      │
+│                        WebSocket + REST                              │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               |
+┌──────────────────────────────┼───────────────────────────────────────┐
+│                         Backend (FastAPI)                            │
+│                               |                                      │
+│              API Layer  (REST + WebSocket /ws/live)                  │
+│                               |                                      │
+│              LangGraph Pipeline  (DAG with conditional edges)        │
+│                               |                                      │
+│    Analysts     Researchers     Trader     Risk Committee            │
+│    (4 nodes)    (Bull, Bear,    (plan      (Aggressive,              │
+│                  Judge)         generator)  Conservative,            │
+│                                             Neutral, CRO)            │
+│                               |                                      │
+│    LLM Client    Data Providers    Memory Layer    Confidence        │
+│    (Groq +       (yfinance,        (ChromaDB,      Tracker           │
+│     backoff)      CCXT)             SQLite)        (Kelly sizing)    │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🧩 Project Structure
+## Project Structure
 
 ```
-StockTradingAgents/
+quorum/
 ├── backend/
 │   ├── agents/
-│   │   ├── analysts/              # 4 parallel analyst agents
-│   │   │   ├── market_analyst.py      # Technical indicators, price action, momentum
-│   │   │   ├── sentiment_analyst.py   # Social sentiment, market mood
-│   │   │   ├── news_analyst.py        # Headlines, press releases, filings
-│   │   │   └── fundamentals_analyst.py # P/E, revenue, margins, balance sheet
-│   │   ├── researchers/           # Adversarial debate system
-│   │   │   └── researchers.py         # Bull researcher, Bear researcher, Research Judge
-│   │   ├── traders/               # Trade execution layer
-│   │   │   ├── trader.py              # Converts thesis → trade plan
-│   │   │   └── risk_debaters.py       # Aggressive, Conservative, Neutral analysts + CRO Judge
-│   │   └── confidence.py          # Adaptive weight scoring + Kelly Criterion sizing
+│   │   ├── analysts/
+│   │   │   ├── market_analyst.py          # Technical indicators, price action, momentum
+│   │   │   ├── sentiment_analyst.py       # Social sentiment, market mood
+│   │   │   ├── news_analyst.py            # Headlines, press releases, filings
+│   │   │   └── fundamentals_analyst.py    # P/E, revenue, margins, balance sheet
+│   │   ├── researchers/
+│   │   │   └── researchers.py             # Bull researcher, Bear researcher, Research Judge
+│   │   ├── traders/
+│   │   │   ├── trader.py                  # Converts thesis into a trade plan
+│   │   │   └── risk_debaters.py           # Aggressive, Conservative, Neutral + CRO Judge
+│   │   └── confidence.py                  # Adaptive weight scoring + Kelly Criterion sizing
 │   ├── api/
-│   │   └── main.py                # FastAPI server — REST + WebSocket endpoints
+│   │   └── main.py                        # FastAPI server — REST + WebSocket endpoints
 │   ├── data/
-│   │   ├── stock_provider.py      # yfinance wrapper (OHLCV, fundamentals, technicals)
-│   │   └── crypto_provider.py     # CCXT wrapper (Binance data, order books)
+│   │   ├── stock_provider.py              # yfinance wrapper (OHLCV, fundamentals, technicals)
+│   │   └── crypto_provider.py             # CCXT wrapper (Binance data, order books)
 │   ├── graph/
-│   │   └── pipeline.py            # LangGraph state machine — compiles all agents into a DAG
+│   │   └── pipeline.py                    # LangGraph state machine
 │   ├── memory/
-│   │   ├── vector_store.py        # ChromaDB semantic memory for past trade contexts
-│   │   └── trade_db.py            # SQLite async DB for trades, portfolio, agent accuracy
+│   │   ├── vector_store.py                # ChromaDB semantic memory
+│   │   └── trade_db.py                    # SQLite async DB for trades and portfolio
 │   ├── models/
-│   │   └── schemas.py             # Pydantic models (20+ types: reports, debates, signals, etc.)
+│   │   └── schemas.py                     # Pydantic models (reports, debates, signals)
 │   ├── utils/
-│   │   └── json_parser.py         # Resilient JSON extraction from LLM output
-│   ├── config.py                  # Central config (env vars, pipeline params, paths)
-│   ├── llm_client.py              # Groq LLM client with rate-limit backoff + concurrency throttle
+│   │   └── json_parser.py                 # Resilient JSON extraction from LLM output
+│   ├── config.py                          # Central configuration
+│   ├── llm_client.py                      # Groq client with rate-limit backoff
 │   └── requirements.txt
 ├── frontend/
-│   ├── app/                       # Next.js 16 App Router pages
-│   │   ├── page.tsx                   # Landing / dashboard
-│   │   ├── agents/                    # Agent reasoning & debate viewer
-│   │   ├── trades/                    # Trade history table
-│   │   └── settings/                  # Configuration panel
+│   ├── app/
+│   │   ├── page.tsx                       # Dashboard
+│   │   ├── agents/                        # Agent reasoning and debate viewer
+│   │   ├── trades/                        # Trade history
+│   │   └── settings/                      # Configuration panel
 │   ├── components/
-│   │   ├── DashboardContent.tsx       # Main dashboard with charts & portfolio
-│   │   ├── Sidebar.tsx                # Navigation sidebar
-│   │   ├── AppShell.tsx               # Layout wrapper
-│   │   └── ParticleScene.tsx          # Three.js particle background
-│   └── public/                    # Static assets
+│   │   ├── DashboardContent.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── AppShell.tsx
+│   │   └── ParticleScene.tsx
+│   └── public/
 └── README.md
 ```
 
 ---
 
-## ⚙️ How the Pipeline Works
+## How the Pipeline Works
 
-### 1. Parallel Analysis (Fan-Out)
+### Phase 1 — Parallel Analysis
 
-All four analysts **execute simultaneously** using LangGraph's fan-out pattern. Each analyst uses a `quick_thinker` LLM (optimized for speed) and generates a structured `AnalystReport` with sentiment, confidence, key findings, and raw data:
+All four analysts execute simultaneously using LangGraph's fan-out pattern. Each uses a fast `quick_thinker` LLM and produces a structured `AnalystReport` containing sentiment, confidence score, key findings, and raw data.
 
 | Analyst | Data Source | Key Metrics |
-|:--------|:-----------|:------------|
-| **Market** | yfinance / CCXT | RSI, MACD, Bollinger Bands, SMA crossovers, volume profile |
-| **Sentiment** | Market mood analysis | Social buzz, fear/greed signals, momentum sentiment |
-| **News** | Headlines & filings | Event impact, catalyst identification, headline sentiment |
-| **Fundamentals** | Company financials | P/E, revenue growth, margins, debt-to-equity, cash flow |
+|:--------|:------------|:------------|
+| Market | yfinance / CCXT | RSI, MACD, Bollinger Bands, SMA crossovers, volume profile |
+| Sentiment | Market mood analysis | Social buzz, fear/greed signals, momentum sentiment |
+| News | Headlines and filings | Event impact, catalyst identification, headline sentiment |
+| Fundamentals | Company financials | P/E, revenue growth, margins, debt-to-equity, cash flow |
 
-### 2. Investment Debate (Bull vs Bear)
+### Phase 2 — Investment Debate
 
-The analyst reports are fed into an **adversarial debate**:
+The analyst reports feed into an adversarial debate between a Bull Researcher and a Bear Researcher. The debate runs for a configurable number of rounds. A Research Judge — using a `deep_thinker` LLM — then evaluates both sides and produces a verdict (`bullish`, `bearish`, or `neutral`), a confidence score, and a synthesized investment thesis.
 
-- **Bull Researcher** — constructs the strongest bullish case using analyst evidence
-- **Bear Researcher** — directly counters with bearish arguments, risks, and red flags
-- The debate runs for **2 configurable rounds** of back-and-forth
-- **Research Judge** — a `deep_thinker` LLM evaluates both sides and delivers:
-  - A verdict (`bullish` / `bearish` / `neutral`)
-  - A confidence score
-  - A synthesized investment thesis
+### Phase 3 — Trade Planning
 
-### 3. Trade Planning
+The Trader Agent receives the research thesis and converts it into an actionable trade plan: action (`buy`, `sell`, `hold`, `short`, `cover`), entry price, target price, stop-loss, and position size. It also queries vector memory for similar past trades to avoid repeating prior mistakes.
 
-The **Trader Agent** receives the research thesis and converts it into a concrete, actionable trade plan:
+### Phase 4 — Risk Committee
 
-- **Action**: `buy`, `sell`, `hold`, `short`, or `cover`
-- **Entry price**, **target price**, **stop-loss**
-- **Position size** (capped at 30% of portfolio)
-- Consults **vector memory** for similar past trades to avoid repeating mistakes
+Three risk analysts debate the proposed trade across two rounds. The Risk Judge (CRO) then makes the final call — approve, modify, or reject — and sets the final position size and stop-loss parameters.
 
-### 4. Risk Debate (Three-Way)
+### Adaptive Confidence
 
-Before any trade is finalized, three risk analysts debate it:
-
-- **Aggressive** — argues for larger positions, acceptable drawdowns
-- **Conservative** — argues for smaller positions, tighter stops
-- **Neutral** — balances risk and reward objectively
-
-After **2 rounds**, the **Risk Judge (CRO)** makes the final call:
-- Approve, modify, or reject the trade
-- Set final position size and stop-loss parameters
-- Calculate max portfolio risk percentage
-
-### 5. Adaptive Confidence
-
-Agents have **adaptive weights** that evolve based on accuracy:
-
-- Predictions are tracked over time via `ConfidenceTracker`
-- Weights adjust using an EMA-like formula: `weight = 0.5 + accuracy`
-- Position sizing uses the **Kelly Criterion** (half-Kelly for safety, capped at 25%)
+Each agent's historical prediction accuracy is tracked via `ConfidenceTracker`. Weights adjust using an EMA-like formula (`weight = 0.5 + accuracy`). Position sizing uses the Kelly Criterion at half-Kelly, capped at 25% of portfolio.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology | Purpose |
 |:------|:-----------|:--------|
-| **Agent Framework** | LangChain + LangGraph | Agent nodes, state management, parallel DAG execution |
-| **LLM Provider** | Groq (Kimi K2) | Fast inference with rate-limit-resilient wrapper |
-| **API Server** | FastAPI + WebSockets | REST endpoints + real-time streaming |
-| **Stock Data** | yfinance + stockstats | OHLCV, fundamentals, technical indicators, news |
-| **Crypto Data** | CCXT (Binance) | Candles, ticker info, order books |
-| **Vector Memory** | ChromaDB | Semantic search over past trade situations |
-| **Trade Database** | SQLite (aiosqlite) | Trade history, portfolio snapshots, agent accuracy |
-| **Frontend** | Next.js 16, TypeScript | App Router, server/client components |
-| **UI Libraries** | Recharts, Three.js, Framer Motion | Charts, 3D particle effects, animations |
-| **Styling** | Tailwind CSS 4 | Utility-first responsive design |
+| Agent Framework | LangChain + LangGraph | Agent nodes, state management, parallel DAG execution |
+| LLM Provider | Groq | Fast inference with rate-limit-resilient wrapper |
+| API Server | FastAPI + WebSockets | REST endpoints and real-time streaming |
+| Stock Data | yfinance + stockstats | OHLCV, fundamentals, technical indicators, news |
+| Crypto Data | CCXT (Binance) | Candles, ticker info, order books |
+| Vector Memory | ChromaDB | Semantic search over past trade situations |
+| Trade Database | SQLite (aiosqlite) | Trade history, portfolio snapshots, agent accuracy |
+| Frontend | Next.js 16, TypeScript | App Router, server and client components |
+| UI Libraries | Recharts, Three.js, Framer Motion | Charts, 3D effects, animations |
+| Styling | Tailwind CSS 4 | Utility-first responsive design |
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- Python 3.11+
-- Node.js 18+
-- A free [Groq API key](https://console.groq.com)
+- Python 3.11 or higher
+- Node.js 18 or higher
+- A Groq API key — free at [console.groq.com](https://console.groq.com)
 
-### Backend Setup
+### Backend
 
 ```bash
 cd backend
+
 python -m venv .venv
 
 # Windows
 .venv\Scripts\activate
-# macOS/Linux
+
+# macOS / Linux
 source .venv/bin/activate
 
 pip install -r requirements.txt
-cp .env.example .env    # Add your API keys
+
+cp .env.example .env
+# Open .env and add your GROQ_API_KEY
+
 python -m uvicorn api.main:app --reload
 ```
 
-The backend runs at `http://localhost:8000`. API docs available at `http://localhost:8000/docs`.
+The API runs at `http://localhost:8000`. Interactive docs are available at `http://localhost:8000/docs`.
 
-### Frontend Setup
+### Frontend
 
 ```bash
 cd frontend
@@ -316,57 +242,43 @@ The frontend runs at `http://localhost:3000`.
 
 ### Environment Variables
 
-Copy `backend/.env.example` → `backend/.env` and configure:
+Copy `backend/.env.example` to `backend/.env` and fill in the values below.
 
 | Variable | Required | Description |
 |:---------|:--------:|:------------|
-| `GROQ_API_KEY` | ✅ | Free at [console.groq.com](https://console.groq.com) |
-| `ALPACA_API_KEY` | ❌ | Paper trading via [Alpaca](https://alpaca.markets) |
-| `ALPACA_SECRET_KEY` | ❌ | Alpaca secret key |
-| `TELEGRAM_BOT_TOKEN` | ❌ | Telegram alert notifications |
-| `DISCORD_WEBHOOK_URL` | ❌ | Discord alert webhook |
+| `GROQ_API_KEY` | Yes | Free at [console.groq.com](https://console.groq.com) |
+| `ALPACA_API_KEY` | No | Paper trading via [Alpaca](https://alpaca.markets) |
+| `ALPACA_SECRET_KEY` | No | Alpaca secret key |
+| `TELEGRAM_BOT_TOKEN` | No | Telegram alert notifications |
+| `DISCORD_WEBHOOK_URL` | No | Discord alert webhook |
 
 ---
 
-## 📡 API Reference
+## API Reference
 
 ### REST Endpoints
 
 | Method | Endpoint | Description |
 |:------:|:---------|:------------|
-| `POST` | `/analyze` | Run the full 13-agent pipeline for a ticker |
-| `GET` | `/portfolio` | Current portfolio state (cash, positions, P&L) |
-| `GET` | `/portfolio/history` | Portfolio value history for charting |
-| `GET` | `/trades` | Trade history with optional ticker filter |
-| `GET` | `/price/{ticker}` | Current price + fundamental data |
-| `GET` | `/indicators/{ticker}` | Technical indicators (RSI, MACD, Bollinger, etc.) |
-| `GET` | `/health` | Health check |
+| POST | `/analyze` | Run the full 13-agent pipeline for a ticker |
+| GET | `/portfolio` | Current portfolio state (cash, positions, P&L) |
+| GET | `/portfolio/history` | Portfolio value history for charting |
+| GET | `/trades` | Trade history with optional ticker filter |
+| GET | `/price/{ticker}` | Current price and fundamental data |
+| GET | `/indicators/{ticker}` | Technical indicators (RSI, MACD, Bollinger, etc.) |
+| GET | `/health` | Health check |
 
 ### WebSocket
 
-| Protocol | Endpoint | Description |
-|:--------:|:---------|:------------|
-| `WS` | `/ws/live` | Real-time broadcast of analysis updates, trade signals, and portfolio changes |
+| Endpoint | Description |
+|:---------|:------------|
+| `/ws/live` | Real-time broadcast of analysis updates, trade signals, and portfolio changes |
 
-**Message types**: `analysis_update`, `trade_signal`, `portfolio_update`, `agent_reasoning`
-
----
-
-## ✨ Key Features
-
-- **🔀 Parallel Execution** — 4 analysts run simultaneously via LangGraph fan-out, cutting analysis time by ~4×
-- **⚔️ Adversarial Debates** — Bull vs Bear researchers argue with evidence across multiple rounds, judged by a Research Director
-- **🛡️ Risk Committee** — Every trade goes through a 3-way risk debate before approval
-- **⏳ Rate-Limit Resilience** — Exponential backoff + jitter + concurrency semaphore for Groq API
-- **📈 Adaptive Confidence** — Agent weights evolve based on historical accuracy using EMA smoothing
-- **🧠 Vector Memory** — ChromaDB stores past analyses for semantic retrieval, preventing repeated mistakes
-- **📊 Real-time Dashboard** — WebSocket-powered live updates with portfolio charts and agent reasoning
-- **🪙 Dual Asset Support** — Stocks (yfinance) and crypto (CCXT/Binance) in the same pipeline
-- **📐 Kelly Criterion Sizing** — Position sizes calculated using half-Kelly with 25% cap for safety
+Message types: `analysis_update`, `trade_signal`, `portfolio_update`, `agent_reasoning`
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 Key pipeline parameters in `backend/config.py`:
 
@@ -374,13 +286,13 @@ Key pipeline parameters in `backend/config.py`:
 |:----------|:-------:|:------------|
 | `MAX_DEBATE_ROUNDS` | 2 | Bull/Bear research debate rounds |
 | `MAX_RISK_DEBATE_ROUNDS` | 2 | Risk committee debate rounds |
-| `ANALYST_TIMEOUT` | 60s | Max seconds per analyst agent |
-| `AUTO_TRADE_CONFIDENCE` | 0.85 | Auto-approve trades above this confidence |
-| `APPROVAL_QUEUE_TTL` | 300s | Seconds before pending approvals expire |
-| `LLM_TEMPERATURE` | 0.7 | LLM creativity (higher = more varied analysis) |
+| `ANALYST_TIMEOUT` | 60 | Max seconds per analyst agent |
+| `AUTO_TRADE_CONFIDENCE` | 0.85 | Auto-approve trades above this confidence threshold |
+| `APPROVAL_QUEUE_TTL` | 300 | Seconds before a pending approval expires |
+| `LLM_TEMPERATURE` | 0.7 | Controls output variation across LLM calls |
 
 ---
 
-## 📄 License
+## License
 
 MIT
