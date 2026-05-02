@@ -23,6 +23,9 @@ stockstats==0.6.2
 chromadb==0.6.3
 aiosqlite==0.21.0
 
+# ─── Locus Integration ────────────────────────────────────────
+# httpx already listed above — used for Locus API calls
+
 # ─── Alerts ───────────────────────────────────────────────────
 python-telegram-bot==21.11.1
 aiohttp==3.10.11

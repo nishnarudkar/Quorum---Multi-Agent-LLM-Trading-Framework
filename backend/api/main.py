@@ -24,6 +24,15 @@ from data.stock_provider import StockProvider
 from data.crypto_provider import CryptoProvider
 from data.ticker_search import search_tickers
 from utils.event_bus import event_bus
+from locus.founder_agent import founder_agent
+from locus.checkout import (
+    create_checkout_session,
+    confirm_payment,
+    get_session,
+    mark_fulfilled,
+    mock_confirm,
+    get_revenue_summary,
+)
 
 # ─── Logging ──────────────────────────────────────────────────
 logging.basicConfig(
@@ -83,6 +92,27 @@ class TradeApprovalRequest(BaseModel):
         return v.lower()
 
 
+class CheckoutRequest(BaseModel):
+    ticker: str
+    asset_type: str = "stock"
+    selected_analysts: Optional[list[str]] = None
+
+    @field_validator("ticker")
+    @classmethod
+    def validate_ticker(cls, v: str) -> str:
+        v = v.strip().upper()
+        if not v or len(v) > 20:
+            raise ValueError("Ticker must be 1–20 characters")
+        return v
+
+    @field_validator("asset_type")
+    @classmethod
+    def validate_asset_type(cls, v: str) -> str:
+        if v not in VALID_ASSET_TYPES:
+            raise ValueError(f"asset_type must be one of {VALID_ASSET_TYPES}")
+        return v
+
+
 # ─── Global State ─────────────────────────────────────────────
 
 pipeline: Optional[TradingPipeline] = None
@@ -108,12 +138,16 @@ async def lifespan(app: FastAPI):
     pipeline = TradingPipeline()
     await pipeline.initialize()
 
+    # Initialize LocusFounder agent (wallet + credentials)
+    await founder_agent.initialize()
+
     event_bus.subscribe(broadcast_subscriber)
     logger.info("Quorum API started")
 
     yield
 
     event_bus.unsubscribe(broadcast_subscriber)
+    await founder_agent.close()
     logger.info("Quorum API shutting down")
 
 
@@ -193,6 +227,8 @@ async def health_check():
         "status": "healthy",
         "pipeline_ready": pipeline is not None,
         "db_ready": trade_db is not None,
+        "locus_ready": founder_agent.is_ready,
+        "locus_wallet": founder_agent.wallet_address,
         "timestamp": datetime.utcnow().isoformat(),
     }
 
@@ -498,6 +534,168 @@ async def get_agent_accuracy():
     if not trade_db:
         raise HTTPException(status_code=503, detail="Database not initialized")
     return await trade_db.get_agent_accuracy()
+
+
+# ─── Locus / LocusFounder Endpoints ──────────────────────────
+
+@app.get("/locus/business")
+async def get_business_info():
+    """Public storefront — describes Quorum's services and pricing."""
+    return founder_agent.get_business_info()
+
+
+@app.get("/locus/wallet")
+async def get_wallet():
+    """Get the agent's Locus wallet balance and address."""
+    return await founder_agent.get_balance()
+
+
+@app.get("/locus/revenue")
+async def get_revenue():
+    """Get revenue summary across all checkout sessions."""
+    return get_revenue_summary()
+
+
+@app.post("/locus/checkout")
+async def create_checkout(request: CheckoutRequest):
+    """
+    Create a $5 USDC checkout session for a paid analysis.
+
+    Returns a checkout URL the client uses to pay.
+    Once payment is confirmed, call /locus/checkout/{session_id}/status
+    to poll for confirmation, then /analyze will run automatically.
+    """
+    session = await create_checkout_session(
+        ticker=request.ticker,
+        asset_type=request.asset_type,
+        selected_analysts=request.selected_analysts,
+    )
+    return session
+
+
+@app.get("/locus/checkout/{session_id}")
+async def get_checkout_session(session_id: str):
+    """Get the current state of a checkout session."""
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@app.get("/locus/checkout/{session_id}/status")
+async def poll_payment_status(session_id: str):
+    """
+    Poll payment status for a checkout session.
+    Returns paid=true once the USDC payment is confirmed.
+    If paid, automatically triggers the analysis pipeline.
+    """
+    result = await confirm_payment(session_id)
+
+    # Auto-trigger analysis once payment is confirmed
+    if result.get("paid") and result.get("status") != "fulfilled":
+        session = get_session(session_id)
+        if session and pipeline:
+            ticker = session["ticker"]
+            asset_type = session["asset_type"]
+            analysis_id = str(uuid.uuid4())
+
+            logger.info(
+                f"Payment confirmed for {ticker} — triggering analysis "
+                f"[session: {session_id[:8]}]"
+            )
+
+            # Run analysis in background so the poll response returns immediately
+            asyncio.create_task(
+                _run_paid_analysis(
+                    session_id=session_id,
+                    ticker=ticker,
+                    asset_type=asset_type,
+                    analysis_id=analysis_id,
+                )
+            )
+            result["analysis_triggered"] = True
+            result["analysis_id"] = analysis_id
+
+    return result
+
+
+async def _run_paid_analysis(
+    session_id: str,
+    ticker: str,
+    asset_type: str,
+    analysis_id: str,
+):
+    """Background task: run the full pipeline after payment is confirmed."""
+    try:
+        await broadcast({
+            "type": "analysis_start",
+            "analysis_id": analysis_id,
+            "data": {
+                "ticker": ticker,
+                "asset_type": asset_type,
+                "paid": True,
+                "session_id": session_id,
+            },
+        })
+
+        result = await pipeline.analyze(
+            ticker=ticker,
+            asset_type=asset_type,
+            trade_date=datetime.utcnow().strftime("%Y-%m-%d"),
+            analysis_id=analysis_id,
+        )
+
+        serialized = _serialize_state(result)
+
+        if trade_db:
+            await trade_db.save_analysis_log(
+                ticker, asset_type,
+                datetime.utcnow().strftime("%Y-%m-%d"),
+                {**serialized, "session_id": session_id},
+            )
+
+        mark_fulfilled(session_id, analysis_id)
+
+        await broadcast({
+            "type": "analysis_complete",
+            "analysis_id": analysis_id,
+            "session_id": session_id,
+            "data": serialized,
+        })
+
+        logger.info(
+            f"Paid analysis complete — {ticker} | session: {session_id[:8]} | "
+            f"analysis: {analysis_id[:8]}"
+        )
+
+    except Exception as e:
+        logger.error(f"Paid analysis failed for session {session_id}: {e}")
+        await broadcast({
+            "type": "analysis_error",
+            "analysis_id": analysis_id,
+            "session_id": session_id,
+            "data": {"error": str(e)},
+        })
+
+
+@app.post("/locus/mock-pay/{session_id}")
+async def mock_pay(session_id: str):
+    """
+    Development endpoint: simulate a USDC payment for a checkout session.
+    Only works for mock/dev sessions. Do not use in production.
+    """
+    confirmed = mock_confirm(session_id)
+    if not confirmed:
+        raise HTTPException(
+            status_code=400,
+            detail="Session not found, already paid, or not a mock session",
+        )
+    return {
+        "success": True,
+        "message": "Mock payment confirmed",
+        "session_id": session_id,
+        "next": f"/locus/checkout/{session_id}/status",
+    }
 
 
 # ─── Helpers ──────────────────────────────────────────────────

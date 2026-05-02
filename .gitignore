@@ -24,6 +24,9 @@ backend/data_cache/
 backend/db/
 backend/chroma_store/
 
+# Locus credentials — contains private keys, never commit
+backend/db/locus_credentials.json
+
 # IDE
 .vscode/
 .idea/

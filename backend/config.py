@@ -80,6 +80,12 @@ WATCHLIST_DEFAULT = ["AAPL", "NVDA", "TSLA", "BTC/USD", "ETH/USD"]
 # ─── Database ─────────────────────────────────────────────────
 SQLITE_DB_PATH = DB_DIR / "quorum.db"
 
+# ─── Locus / LocusFounder ─────────────────────────────────────
+LOCUS_API_KEY = os.getenv("LOCUS_API_KEY", "")          # Optional: pre-provisioned key
+LOCUS_BETA_API = "https://beta-api.paywithlocus.com/api"
+LOCUS_ENABLED = os.getenv("LOCUS_ENABLED", "true").lower() == "true"
+ANALYSIS_PRICE_USDC = float(os.getenv("ANALYSIS_PRICE_USDC", "5.00"))
+
 # ─── Server ───────────────────────────────────────────────────
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("API_PORT", "8000"))
