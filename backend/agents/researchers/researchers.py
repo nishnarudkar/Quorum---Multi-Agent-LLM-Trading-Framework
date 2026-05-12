@@ -141,7 +141,7 @@ Make your BULL case.
         debate.round_count = len(debate.bull_arguments)
 
         logger.info(f"🐂 Bull Researcher done — conviction: {result.get('conviction', 'N/A')}")
-        return {"investment_debate": debate}
+        return {"investment_debate": debate.dict()}
 
     return bull_researcher_node
 
@@ -191,7 +191,7 @@ Make your BEAR case.
         debate.bear_arguments.append(msg)
 
         logger.info(f"🐻 Bear Researcher done — conviction: {result.get('conviction', 'N/A')}")
-        return {"investment_debate": debate}
+        return {"investment_debate": debate.dict()}
 
     return bear_researcher_node
 
@@ -233,6 +233,6 @@ Deliver your verdict.
         debate.investment_thesis = result.get("investment_thesis", "")
 
         logger.info(f"⚖️ Research Judge verdict: {debate.judge_verdict} (conf: {debate.judge_confidence:.0%})")
-        return {"investment_debate": debate}
+        return {"investment_debate": debate.dict()}
 
     return research_judge_node

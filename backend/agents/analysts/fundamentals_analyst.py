@@ -152,6 +152,6 @@ Provide your analysis in the required JSON format.
                 "details": result.get("reasoning", ""),
                 "timestamp": datetime.utcnow().isoformat()
             })
-        return {"fundamentals_report": report}
+        return {"fundamentals_report": report.dict()}
 
     return fundamentals_analyst_node

@@ -184,6 +184,6 @@ Create your trade plan. Use the current price as your entry reference.
             f"Trader done — {trade_signal.action.value} "
             f"(conf: {trade_signal.confidence:.0%}, size: {trade_signal.position_size_pct:.1%})"
         )
-        return {"trade_signal": trade_signal}
+        return {"trade_signal": trade_signal.dict()}
 
     return trader_node
