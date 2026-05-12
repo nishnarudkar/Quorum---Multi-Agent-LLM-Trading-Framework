@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 export default function LandingPage() {
     useEffect(() => {
+        // Set year
         const yearSpan = document.getElementById('y');
         if (yearSpan) yearSpan.textContent = new Date().getFullYear().toString();
     }, []);
@@ -37,8 +38,6 @@ export default function LandingPage() {
                         radial-gradient(circle at 15% 0%, #6c63ff14, transparent 40%),
                         radial-gradient(circle at 85% 30%, #6c63ff0a, transparent 50%);
                     min-height: 100vh;
-                    position: relative;
-                    z-index: 1;
                 }
 
                 .wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
@@ -56,6 +55,7 @@ export default function LandingPage() {
                 
                 p { color: var(--muted); }
 
+                /* Header */
                 header.nav {
                     position: sticky; top: 0; z-index: 50;
                     background: rgba(11, 13, 18, 0.78);
@@ -69,6 +69,7 @@ export default function LandingPage() {
                 .nav-links a:hover { color: var(--text); }
                 @media(max-width: 720px) { .nav-links { display: none; } }
 
+                /* Buttons */
                 .btn {
                     display: inline-block;
                     background: var(--accent);
@@ -88,6 +89,7 @@ export default function LandingPage() {
                 .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--line); box-shadow: none; }
                 .btn-ghost:hover { border-color: var(--accent); box-shadow: none; }
 
+                /* Hero */
                 .hero { padding: 90px 0 60px; position: relative; }
                 .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: .78rem; color: var(--muted); border: 1px solid var(--line); padding: 6px 12px; margin-bottom: 28px; background: var(--bg-1); }
                 .eyebrow .pulse { width: 6px; height: 6px; background: var(--bull); border-radius: 50%; box-shadow: 0 0 8px var(--bull); }
@@ -95,6 +97,7 @@ export default function LandingPage() {
                 .hero-cta { margin-top: 36px; display: flex; gap: 14px; flex-wrap: wrap; }
                 .hero-meta { margin-top: 24px; font-size: .78rem; color: var(--muted); }
 
+                /* Debate ticker */
                 .ticker {
                     margin-top: 64px;
                     border: 1px solid var(--line);
@@ -118,17 +121,20 @@ export default function LandingPage() {
                 .tag-judge { background: var(--accent-dim); color: var(--accent); border: 1px solid #6c63ff60; }
                 .log .msg { color: #cfd3dc; }
 
+                /* Sections */
                 section { padding: 88px 0; border-top: 1px solid var(--line); }
                 .kicker { font-size: .78rem; color: var(--accent); text-transform: uppercase; letter-spacing: .15em; margin-bottom: 14px; }
                 .sec-intro { max-width: 680px; margin-bottom: 48px; }
                 .sec-intro p { margin-top: 10px; font-size: 1rem; }
 
+                /* Problem */
                 .problem-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }
                 .problem-grid > div { background: var(--bg); padding: 32px 26px; }
                 .problem-grid h3 { margin-bottom: 10px; }
                 .problem-grid .n { font-family: 'JetBrains Mono'; color: var(--muted); font-size: .78rem; margin-bottom: 14px; letter-spacing: .1em; }
                 @media(max-width: 720px) { .problem-grid { grid-template-columns: 1fr; } }
 
+                /* How it works */
                 .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
                 .stage {
                     background: var(--bg-1);
@@ -146,6 +152,7 @@ export default function LandingPage() {
                 @media(max-width: 900px) { .pipeline { grid-template-columns: repeat(2, 1fr); } }
                 @media(max-width: 520px) { .pipeline { grid-template-columns: 1fr; } }
 
+                /* Sample report */
                 .report {
                     background: var(--bg-1);
                     border: 1px solid var(--line);
@@ -174,6 +181,7 @@ export default function LandingPage() {
                 .catalysts li::before { content: "›"; position: absolute; left: 0; color: var(--accent); }
                 @media(max-width: 780px) { .report { grid-template-columns: 1fr; } .tx-col { border-right: none; border-bottom: 1px solid var(--line); } }
 
+                /* Pricing */
                 .price-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
                 .price { background: var(--bg-1); border: 1px solid var(--line); padding: 32px; }
                 .price.feature { border-color: var(--accent); box-shadow: 0 0 0 1px #6c63ff44, 0 0 60px #6c63ff15; }
@@ -186,6 +194,7 @@ export default function LandingPage() {
                 .price li::before { content: "✓"; color: var(--accent); }
                 @media(max-width: 720px) { .price-grid { grid-template-columns: 1fr; } }
 
+                /* FAQ */
                 details { border: 1px solid var(--line); background: var(--bg-1); margin-bottom: 10px; padding: 18px 22px; }
                 details[open] { border-color: #6c63ff60; }
                 summary { cursor: pointer; font-family: 'Space Grotesk'; font-weight: 600; font-size: 1rem; list-style: none; display: flex; justify-content: space-between; align-items: center; }
@@ -194,10 +203,12 @@ export default function LandingPage() {
                 details[open] summary::after { content: "−"; }
                 details p { margin-top: 14px; font-size: .88rem; line-height: 1.65; }
 
+                /* Final CTA */
                 .final { text-align: center; padding: 100px 0; }
                 .final h2 { font-size: clamp(2rem, 4vw, 3.2rem); max-width: 760px; margin: 0 auto 20px; }
                 .final p { max-width: 520px; margin: 0 auto 32px; }
 
+                /* Footer */
                 footer { border-top: 1px solid var(--line); padding: 36px 0; font-size: .78rem; color: var(--muted); }
                 .foot-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; }
 
@@ -214,7 +225,6 @@ export default function LandingPage() {
                     margin-left: 0 !important;
                     padding: 0 !important;
                     max-width: none !important;
-                    min-height: 0 !important;
                 }
                 :global(.sidebar) {
                     display: none !important;
