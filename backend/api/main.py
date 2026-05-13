@@ -35,6 +35,7 @@ from locus.checkout import (
     mock_confirm,
     get_revenue_summary,
 )
+from utils.alerts import send_analysis_alert, send_error_alert, send_approval_required_alert
 
 # ─── Logging ──────────────────────────────────────────────────
 logging.basicConfig(
@@ -313,6 +314,10 @@ async def analyze_ticker(request: AnalyzeRequest):
             )
 
         await broadcast({"type": "analysis_complete", "data": serialized})
+
+        # Send alert to Telegram / Discord
+        await send_analysis_alert(serialized)
+
         return serialized
 
     except TimeoutError as e:
@@ -340,6 +345,7 @@ async def analyze_ticker(request: AnalyzeRequest):
         msg = f"Analysis failed: {e}"
         logger.error(msg)
         await broadcast({"type": "analysis_error", "data": {"error": msg}})
+        await send_error_alert(request.ticker, msg)
         raise HTTPException(status_code=500, detail=msg)
 
 
@@ -560,6 +566,9 @@ async def approve_trade(thread_id: str, request: TradeApprovalRequest):
 
         event_type = "trade_approved" if request.approval == "approve" else "trade_rejected"
         await broadcast({"type": event_type, "data": {"thread_id": thread_id, **serialized}})
+
+        # Alert after human decision
+        await send_analysis_alert(serialized)
 
         return {"status": "ok", "thread_id": thread_id, "decision": request.approval, **serialized}
 
