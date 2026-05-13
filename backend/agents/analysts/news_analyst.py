@@ -4,7 +4,7 @@ Monitors global news, macroeconomic events, and insider activity.
 """
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from models.schemas import AnalystReport, Sentiment
+from models.schemas import AnalystReport
 from data.stock_provider import StockProvider
 from datetime import datetime
 import json
@@ -12,6 +12,7 @@ import logging
 from utils.json_parser import safe_parse_json
 from utils.event_bus import event_bus
 from utils.serialization import sanitize_for_serialization
+from utils.sentiment import normalize_sentiment
 
 logger = logging.getLogger("quorum.news")
 
@@ -117,7 +118,7 @@ Provide your analysis in the required JSON format.
             analyst_type="news",
             ticker=ticker,
             summary=result.get("summary", ""),
-            sentiment=Sentiment(result.get("sentiment", "neutral")),
+            sentiment=normalize_sentiment(result.get("sentiment", "neutral")),
             confidence=float(result.get("confidence", 0.5)),
             key_findings=result.get("key_findings", []),
             raw_data=sanitize_for_serialization({"news": news, "insiders": insiders}),

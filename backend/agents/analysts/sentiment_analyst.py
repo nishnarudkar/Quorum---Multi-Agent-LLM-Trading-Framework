@@ -4,13 +4,14 @@ Analyzes social media sentiment, Reddit, and public mood.
 """
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from models.schemas import AnalystReport, Sentiment
+from models.schemas import AnalystReport
 from data.stock_provider import StockProvider
 from datetime import datetime
 import json
 import logging
 from utils.json_parser import safe_parse_json
 from utils.event_bus import event_bus
+from utils.sentiment import normalize_sentiment
 
 logger = logging.getLogger("quorum.sentiment")
 
@@ -109,7 +110,7 @@ Consider: Is sentiment too euphoric (contrarian sell signal)? Too fearful (contr
             analyst_type="sentiment",
             ticker=ticker,
             summary=result.get("summary", ""),
-            sentiment=Sentiment(result.get("sentiment", "neutral")),
+            sentiment=normalize_sentiment(result.get("sentiment", "neutral")),
             confidence=float(result.get("confidence", 0.5)),
             key_findings=result.get("key_findings", []),
             raw_data={"news": news},
