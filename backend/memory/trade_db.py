@@ -93,6 +93,17 @@ class TradeDB:
                 "CREATE INDEX IF NOT EXISTS idx_logs_created ON analysis_logs(created_at DESC)"
             )
 
+            # Fix for missing columns in existing databases
+            try:
+                await db.execute("ALTER TABLE analysis_logs ADD COLUMN action TEXT")
+            except Exception:
+                pass # Column already exists
+            
+            try:
+                await db.execute("ALTER TABLE analysis_logs ADD COLUMN confidence REAL")
+            except Exception:
+                pass
+
             # Seed initial portfolio snapshot if none exists
             cursor = await db.execute("SELECT COUNT(*) FROM portfolio_snapshots")
             count = (await cursor.fetchone())[0]

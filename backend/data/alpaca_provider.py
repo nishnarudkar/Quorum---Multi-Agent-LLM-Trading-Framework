@@ -118,7 +118,7 @@ class AlpacaProvider:
                 symbol=order_ticker,
                 qty=quantity,
                 side=side,
-                time_in_force=TimeInForce.GTC
+                time_in_force=TimeInForce.DAY
             )
             
             order = self._trading_client.submit_order(order_data=order_request)
