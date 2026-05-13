@@ -141,9 +141,9 @@ function DataExplorer({ result }: { result: AnalysisResult }) {
 
     const tabs = [
         { id: 'technicals' as const, label: 'Technicals', icon: BarChart3, color: '#3b82f6', count: Object.keys(marketRaw).length },
-        { id: 'news' as const, label: 'News', icon: Newspaper, color: '#f97316', count: (newsRaw.news as unknown[] || []).length },
+        { id: 'news' as const, label: 'News', icon: Newspaper, color: '#f97316', count: ((newsRaw.news as unknown[]) || []).length },
         { id: 'fundamentals' as const, label: 'Fundamentals', icon: Landmark, color: '#10b981', count: Object.keys(fundRaw).length },
-        { id: 'sentiment' as const, label: 'Sentiment', icon: HeartPulse, color: '#a855f7', count: (sentRaw.headlines as unknown[] || []).length },
+        { id: 'sentiment' as const, label: 'Sentiment', icon: HeartPulse, color: '#a855f7', count: ((sentRaw.headlines as unknown[]) || []).length },
     ];
 
     const formatValue = (key: string, val: unknown): string => {
@@ -361,7 +361,7 @@ function DataExplorer({ result }: { result: AnalysisResult }) {
                 {/* ─── Sentiment Tab ─── */}
                 {activeTab === 'sentiment' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {sentRaw.current_price && (
+                        {!!sentRaw.current_price && (
                             <div style={{
                                 padding: '12px 16px', borderRadius: 8,
                                 background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(59,130,246,0.08))',

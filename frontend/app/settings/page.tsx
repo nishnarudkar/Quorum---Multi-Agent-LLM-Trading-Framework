@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Settings as SettingsIcon, Key, Cpu, Bell, Globe } from 'lucide-react';
 
 export default function SettingsPage() {
-    const [apiUrl, setApiUrl] = useState('http://localhost:8000');
+    const [apiUrl, setApiUrl] = useState(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
     const [autoTrade, setAutoTrade] = useState(false);
     const [confidenceThreshold, setConfidenceThreshold] = useState(85);
 
