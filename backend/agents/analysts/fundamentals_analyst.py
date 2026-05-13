@@ -11,6 +11,7 @@ import json
 import logging
 from utils.json_parser import safe_parse_json
 from utils.event_bus import event_bus
+from utils.serialization import sanitize_for_serialization
 
 logger = logging.getLogger("quorum.fundamentals")
 
@@ -139,7 +140,7 @@ Provide your analysis in the required JSON format.
             sentiment=Sentiment(result.get("sentiment", "neutral")),
             confidence=float(result.get("confidence", 0.5)),
             key_findings=result.get("key_findings", []),
-            raw_data=raw_data,
+            raw_data=sanitize_for_serialization(raw_data),
             reasoning=result.get("reasoning", ""),
         )
 

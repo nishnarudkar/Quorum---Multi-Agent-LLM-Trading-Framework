@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from models.schemas import TradeSignal, TradeAction, AssetType
 from utils.json_parser import safe_parse_json
 from config import MAX_POSITION_SIZE, MIN_POSITION_SIZE
+from utils.serialization import sanitize_for_serialization
 
 logger = logging.getLogger("quorum.trader")
 
@@ -184,6 +185,6 @@ Create your trade plan. Use the current price as your entry reference.
             f"Trader done — {trade_signal.action.value} "
             f"(conf: {trade_signal.confidence:.0%}, size: {trade_signal.position_size_pct:.1%})"
         )
-        return {"trade_signal": trade_signal.dict()}
+        return {"trade_signal": sanitize_for_serialization(trade_signal.dict())}
 
     return trader_node

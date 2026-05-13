@@ -12,6 +12,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.types import interrupt, Send
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 import aiosqlite
+from utils.serialization import sanitize_for_serialization
 
 from llm_client import create_deep_thinker, create_quick_thinker
 from agents.analysts import (
@@ -156,7 +157,7 @@ async def human_approval_node(state: dict) -> dict:
 
     approval = interrupt({
         "type": "trade_approval_required",
-        "trade_signal": signal_dict,
+        "trade_signal": sanitize_for_serialization(signal_dict),
         "message": (
             f"Trade requires approval (confidence: {confidence:.0%}). "
             "Reply with 'approve' or 'reject'."

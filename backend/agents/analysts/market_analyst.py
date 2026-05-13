@@ -12,6 +12,7 @@ import json
 import logging
 from utils.json_parser import safe_parse_json
 from utils.event_bus import event_bus
+from utils.serialization import sanitize_for_serialization
 
 logger = logging.getLogger("quorum.market")
 
@@ -120,7 +121,7 @@ Provide your technical analysis in the required JSON format.
             sentiment=Sentiment(result.get("sentiment", "neutral")),
             confidence=float(result.get("confidence", 0.5)),
             key_findings=result.get("key_findings", []),
-            raw_data=indicators,
+            raw_data=sanitize_for_serialization(indicators),
             reasoning=result.get("reasoning", ""),
         )
 
