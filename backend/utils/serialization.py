@@ -21,6 +21,8 @@ def sanitize_for_serialization(obj):
         return sanitize_for_serialization(obj.tolist())
     elif isinstance(obj, (pd.Timestamp, datetime)):
         return obj.isoformat()
+    elif hasattr(obj, "value") and not isinstance(obj, type): # Handle Enums
+        return obj.value
     elif isinstance(obj, pd.Series):
         return sanitize_for_serialization(obj.to_dict())
     elif isinstance(obj, pd.DataFrame):

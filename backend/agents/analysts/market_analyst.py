@@ -134,6 +134,6 @@ Provide your technical analysis in the required JSON format.
                 "details": result.get("reasoning", ""),
                 "timestamp": datetime.utcnow().isoformat()
             })
-        return {"market_report": report.dict()}
+        return {"market_report": report.model_dump()}
 
     return market_analyst_node

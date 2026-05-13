@@ -128,7 +128,7 @@ def create_aggressive_debater(llm):
         debate.round_count = len(debate.aggressive_arguments)
 
         logger.info(f"Aggressive done — risk_rating: {result.get('risk_rating', 'N/A')}")
-        return {"risk_debate": sanitize_for_serialization(debate.dict())}
+        return {"risk_debate": sanitize_for_serialization(debate.model_dump())}
 
     return node
 
@@ -157,7 +157,7 @@ def create_conservative_debater(llm):
         debate.conservative_arguments.append(msg)
 
         logger.info(f"Conservative done — risk_rating: {result.get('risk_rating', 'N/A')}")
-        return {"risk_debate": sanitize_for_serialization(debate.dict())}
+        return {"risk_debate": sanitize_for_serialization(debate.model_dump())}
 
     return node
 
@@ -188,7 +188,7 @@ def create_neutral_debater(llm):
         debate.neutral_arguments.append(msg)
 
         logger.info(f"Neutral done — risk_rating: {result.get('risk_rating', 'N/A')}")
-        return {"risk_debate": sanitize_for_serialization(debate.dict())}
+        return {"risk_debate": sanitize_for_serialization(debate.model_dump())}
 
     return node
 
@@ -262,8 +262,8 @@ def create_risk_judge(llm, memory=None):
         )
 
         return {
-            "risk_debate": sanitize_for_serialization(debate.dict()),
-            "trade_signal": sanitize_for_serialization(trade_signal if isinstance(trade_signal, dict) else trade_signal.dict()),
+            "risk_debate": sanitize_for_serialization(debate.model_dump()),
+            "trade_signal": sanitize_for_serialization(trade_signal if isinstance(trade_signal, dict) else trade_signal.model_dump()),
             "final_decision": final_decision,
             "trade_approved": approved,
         }

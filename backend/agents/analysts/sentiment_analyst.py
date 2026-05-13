@@ -125,6 +125,6 @@ Consider: Is sentiment too euphoric (contrarian sell signal)? Too fearful (contr
                 "details": result.get("reasoning", ""),
                 "timestamp": datetime.utcnow().isoformat()
             })
-        return {"sentiment_report": report.dict()}
+        return {"sentiment_report": report.model_dump()}
 
     return sentiment_analyst_node

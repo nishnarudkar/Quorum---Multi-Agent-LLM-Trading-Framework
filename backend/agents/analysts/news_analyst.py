@@ -133,6 +133,6 @@ Provide your analysis in the required JSON format.
                 "details": result.get("reasoning", ""),
                 "timestamp": datetime.utcnow().isoformat()
             })
-        return {"news_report": report.dict()}
+        return {"news_report": report.model_dump()}
 
     return news_analyst_node
