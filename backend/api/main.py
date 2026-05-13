@@ -22,6 +22,7 @@ from graph.pipeline import TradingPipeline
 from memory.trade_db import TradeDB
 from data.stock_provider import StockProvider
 from data.crypto_provider import CryptoProvider
+from data.alpaca_provider import AlpacaProvider
 from data.ticker_search import search_tickers
 from utils.event_bus import event_bus
 from locus.founder_agent import founder_agent
@@ -119,6 +120,7 @@ pipeline: Optional[TradingPipeline] = None
 trade_db: Optional[TradeDB] = None
 stock_provider = StockProvider()
 crypto_provider = CryptoProvider()
+alpaca_provider = AlpacaProvider()
 active_connections: list[WebSocket] = []
 
 
@@ -292,15 +294,15 @@ async def analyze_ticker(request: AnalyzeRequest):
         approved = result.get("trade_approved", False)
 
         if trade_signal:
-            s = trade_signal if isinstance(trade_signal, dict) else trade_signal.model_dump()
-            logger.info(
-                f"Analysis complete — {request.ticker} in {elapsed:.1f}s | "
-                f"action={s.get('action')} conf={s.get('confidence')} "
-                f"approved={'YES' if approved else 'NO'}"
+            await _record_and_execute_trade(
+                ticker=request.ticker,
+                asset_type=request.asset_type,
+                trade_signal=trade_signal,
+                approved=approved,
+                trade_date=request.trade_date or datetime.utcnow().strftime("%Y-%m-%d")
             )
 
         serialized = _serialize_state(result)
-
         if trade_db:
             await trade_db.save_analysis_log(
                 request.ticker,
@@ -308,24 +310,6 @@ async def analyze_ticker(request: AnalyzeRequest):
                 request.trade_date or datetime.utcnow().strftime("%Y-%m-%d"),
                 serialized,
             )
-
-            # If trade was approved, record it in trade history
-            if approved and trade_signal:
-                s = trade_signal if isinstance(trade_signal, dict) else trade_signal.model_dump()
-                action = s.get("action")
-                if hasattr(action, "value"):
-                    action = action.value
-                if action and action != "hold":
-                    await trade_db.insert_trade(
-                        ticker=request.ticker,
-                        asset_type=request.asset_type,
-                        action=str(action),
-                        quantity=0.0,  # Quantity requires execution layer
-                        price=float(s.get("entry_price") or 0),
-                        confidence=float(s.get("confidence") or 0),
-                        reasoning=str(s.get("reasoning") or "")[:1000],
-                        approval_status="approved",
-                    )
 
         await broadcast({"type": "analysis_complete", "data": serialized})
         return serialized
@@ -504,6 +488,21 @@ async def approve_trade(thread_id: str, request: TradeApprovalRequest):
         config = {"configurable": {"thread_id": thread_id}}
         result = await pipeline.graph.ainvoke(Command(resume=request.approval), config=config)
         serialized = _serialize_state(result)
+
+        # Record and Execute if approved
+        trade_signal = result.get("trade_signal")
+        approved = result.get("trade_approved", False)
+        ticker = result.get("ticker", "UNKNOWN")
+        asset_type = result.get("asset_type", "stock")
+        
+        if trade_signal and approved:
+            await _record_and_execute_trade(
+                ticker=ticker,
+                asset_type=asset_type,
+                trade_signal=trade_signal,
+                approved=approved,
+                trade_date=datetime.utcnow().strftime("%Y-%m-%d")
+            )
 
         event_type = "trade_approved" if request.approval == "approve" else "trade_rejected"
         await broadcast({"type": event_type, "data": {"thread_id": thread_id, **serialized}})
@@ -699,6 +698,76 @@ async def mock_pay(session_id: str):
 
 
 # ─── Helpers ──────────────────────────────────────────────────
+
+async def _record_and_execute_trade(
+    ticker: str,
+    asset_type: str,
+    trade_signal: Any,
+    approved: bool,
+    trade_date: str
+):
+    """Helper to record trade in DB and execute on Alpaca if approved."""
+    if not approved or not trade_signal:
+        return
+
+    s = trade_signal if isinstance(trade_signal, dict) else trade_signal.model_dump()
+    action = s.get("action")
+    if hasattr(action, "value"):
+        action = action.value
+    
+    if not action or action == "hold":
+        return
+
+    # Execution Layer: Alpaca
+    quantity = 0.0
+    execution_result = {}
+    
+    if alpaca_provider.is_active and action in ["buy", "sell"]:
+        try:
+            price = float(s.get("entry_price") or 0)
+            pos_size_pct = float(s.get("position_size_pct") or 0.01)
+            
+            if price > 0:
+                account = alpaca_provider.get_account_info()
+                equity = account.get("equity", INITIAL_CAPITAL)
+                
+                # Calculate quantity based on allocated equity
+                allocated_usd = equity * pos_size_pct
+                quantity = round(allocated_usd / price, 4)
+                
+                if quantity > 0:
+                    logger.info(f"Executing {action} for {ticker} on Alpaca: {quantity} units")
+                    execution_result = await alpaca_provider.execute_trade(
+                        ticker=ticker,
+                        action=action,
+                        quantity=quantity,
+                        asset_type=asset_type
+                    )
+        except Exception as e:
+            logger.error(f"Alpaca execution error: {e}")
+
+    if trade_db:
+        await trade_db.insert_trade(
+            ticker=ticker,
+            asset_type=asset_type,
+            action=str(action),
+            quantity=quantity,
+            price=float(s.get("entry_price") or 0),
+            confidence=float(s.get("confidence") or 0),
+            reasoning=str(s.get("reasoning") or "")[:1000],
+            approval_status="approved",
+        )
+    
+    if execution_result.get("order_id"):
+        await broadcast({
+            "type": "execution_success",
+            "data": {
+                "ticker": ticker,
+                "order_id": execution_result["order_id"],
+                "quantity": quantity
+            }
+        })
+
 
 def _serialize_state(state: dict) -> dict:
     """Serialize pipeline state for JSON, handling Pydantic models, enums, NaN/Inf."""
