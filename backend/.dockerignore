@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+db/
+data_cache/
+chroma_store/
+*.db
+locus_credentials.json
