@@ -1,7 +1,7 @@
 """
 Quorum — Trade Database
 SQLite database for trade history, portfolio snapshots, agent accuracy, and analysis logs.
-Includes indexes, portfolio state management, and performance metrics.
+Includes indexes, portfolio state management, performance metrics, and schema migrations.
 """
 
 import aiosqlite
@@ -21,8 +21,10 @@ class TradeDB:
         self.db_path = db_path or str(SQLITE_DB_PATH)
 
     async def initialize(self):
-        """Create tables and indexes if they don't exist."""
+        """Create tables, indexes, and run migrations for existing databases."""
         async with aiosqlite.connect(self.db_path) as db:
+
+            # ─── Trades ───────────────────────────────────────
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS trades (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,6 +48,7 @@ class TradeDB:
                 "CREATE INDEX IF NOT EXISTS idx_trades_created ON trades(created_at DESC)"
             )
 
+            # ─── Portfolio Snapshots ───────────────────────────
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS portfolio_snapshots (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -62,6 +65,7 @@ class TradeDB:
                 "CREATE INDEX IF NOT EXISTS idx_portfolio_ts ON portfolio_snapshots(timestamp DESC)"
             )
 
+            # ─── Agent Accuracy ───────────────────────────────
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS agent_accuracy (
                     agent_name TEXT PRIMARY KEY,
@@ -73,6 +77,7 @@ class TradeDB:
                 )
             """)
 
+            # ─── Analysis Logs ────────────────────────────────
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS analysis_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,18 +98,22 @@ class TradeDB:
                 "CREATE INDEX IF NOT EXISTS idx_logs_created ON analysis_logs(created_at DESC)"
             )
 
-            # Fix for missing columns in existing databases
-            try:
-                await db.execute("ALTER TABLE analysis_logs ADD COLUMN action TEXT")
-            except Exception:
-                pass # Column already exists
-            
-            try:
-                await db.execute("ALTER TABLE analysis_logs ADD COLUMN confidence REAL")
-            except Exception:
-                pass
+            # ─── Migrations ───────────────────────────────────
+            # Safely add columns that may be missing in databases created before
+            # the current schema. ALTER TABLE ADD COLUMN fails if the column
+            # already exists, so we catch and ignore that error.
+            _migrations = [
+                "ALTER TABLE analysis_logs ADD COLUMN action TEXT",
+                "ALTER TABLE analysis_logs ADD COLUMN confidence REAL",
+                "ALTER TABLE analysis_logs ADD COLUMN trade_approved INTEGER DEFAULT 0",
+            ]
+            for sql in _migrations:
+                try:
+                    await db.execute(sql)
+                except Exception:
+                    pass  # Column already exists — safe to ignore
 
-            # Seed initial portfolio snapshot if none exists
+            # ─── Seed initial portfolio ───────────────────────
             cursor = await db.execute("SELECT COUNT(*) FROM portfolio_snapshots")
             count = (await cursor.fetchone())[0]
             if count == 0:
@@ -116,6 +125,7 @@ class TradeDB:
                 )
 
             await db.commit()
+
         logger.info(f"TradeDB initialized at {self.db_path}")
 
     # ─── Trades ───────────────────────────────────────────────
@@ -203,7 +213,6 @@ class TradeDB:
             result = []
             for row in rows:
                 d = dict(row)
-                # Parse positions JSON
                 try:
                     d["positions"] = json.loads(d.get("positions_json") or "[]")
                 except Exception:
@@ -235,7 +244,6 @@ class TradeDB:
         state_dict: dict,
     ):
         """Save a full analysis pipeline state."""
-        # Extract summary fields for quick querying
         signal = state_dict.get("trade_signal") or {}
         if isinstance(signal, dict):
             action = signal.get("action")
@@ -333,7 +341,6 @@ class TradeDB:
         """Calculate aggregate performance metrics from trade history."""
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
-
             cursor = await db.execute(
                 "SELECT action, pnl, confidence FROM trades WHERE pnl IS NOT NULL"
             )
