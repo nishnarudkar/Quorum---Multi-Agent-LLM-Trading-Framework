@@ -36,6 +36,8 @@ from locus.checkout import (
     get_revenue_summary,
 )
 from utils.alerts import send_analysis_alert, send_error_alert, send_approval_required_alert
+from realtime.price_stream import PriceStream
+from realtime.watchlist_scanner import WatchlistScanner
 
 # ─── Logging ──────────────────────────────────────────────────
 logging.basicConfig(
@@ -124,6 +126,8 @@ stock_provider = StockProvider()
 crypto_provider = CryptoProvider()
 alpaca_provider = AlpacaProvider()
 active_connections: list[WebSocket] = []
+price_stream: Optional[PriceStream] = None
+watchlist_scanner: Optional[WatchlistScanner] = None
 
 
 # ─── Lifespan ─────────────────────────────────────────────────
@@ -134,7 +138,7 @@ async def broadcast_subscriber(message: dict):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global pipeline, trade_db
+    global pipeline, trade_db, price_stream, watchlist_scanner
 
     trade_db = TradeDB()
     await trade_db.initialize()
@@ -146,10 +150,24 @@ async def lifespan(app: FastAPI):
     await founder_agent.initialize()
 
     event_bus.subscribe(broadcast_subscriber)
+
+    # Start real-time price stream
+    price_stream = PriceStream(broadcast)
+    await price_stream.start()
+
+    # Start watchlist scanner (auto-analysis on schedule)
+    watchlist_scanner = WatchlistScanner(pipeline, broadcast, trade_db)
+    await watchlist_scanner.start()
+
     logger.info("Quorum API started")
 
     yield
 
+    # Clean shutdown
+    if price_stream:
+        await price_stream.stop()
+    if watchlist_scanner:
+        await watchlist_scanner.stop()
     event_bus.unsubscribe(broadcast_subscriber)
     await founder_agent.close()
     logger.info("Quorum API shutting down")
@@ -757,6 +775,95 @@ async def mock_pay(session_id: str):
         "message": "Mock payment confirmed",
         "session_id": session_id,
         "next": f"/locus/checkout/{session_id}/status",
+    }
+
+
+# ─── Real-Time: Watchlist & Price Stream ─────────────────────
+
+class WatchlistUpdateRequest(BaseModel):
+    tickers: list[dict]  # [{"ticker": "AAPL", "asset_type": "stock"}, ...]
+
+
+@app.get("/realtime/status")
+async def get_realtime_status():
+    """Get the current status of the price stream and watchlist scanner."""
+    return {
+        "price_stream": {
+            "running": price_stream._running if price_stream else False,
+            "watchlist": price_stream.get_watchlist() if price_stream else [],
+            "poll_interval_seconds": 15,
+            "last_prices": price_stream.get_last_prices() if price_stream else {},
+        },
+        "scanner": watchlist_scanner.get_status() if watchlist_scanner else {"running": False},
+    }
+
+
+@app.get("/realtime/prices")
+async def get_live_prices():
+    """Get the latest cached prices for all watchlist tickers."""
+    if not price_stream:
+        raise HTTPException(status_code=503, detail="Price stream not running")
+    return price_stream.get_last_prices()
+
+
+@app.get("/realtime/watchlist")
+async def get_watchlist():
+    """Get the current watchlist."""
+    if not price_stream:
+        return []
+    return price_stream.get_watchlist()
+
+
+@app.put("/realtime/watchlist")
+async def update_watchlist(request: WatchlistUpdateRequest):
+    """
+    Replace the watchlist for both the price stream and scanner.
+
+    Body: { "tickers": [{"ticker": "AAPL", "asset_type": "stock"}, ...] }
+    """
+    tickers = request.tickers
+    if price_stream:
+        price_stream.set_watchlist(tickers)
+    if watchlist_scanner:
+        watchlist_scanner.set_watchlist(tickers)
+    return {"updated": True, "watchlist": tickers}
+
+
+@app.post("/realtime/watchlist/add")
+async def add_to_watchlist(ticker: str, asset_type: str = "stock"):
+    """Add a single ticker to the watchlist."""
+    ticker = ticker.strip().upper()
+    if price_stream:
+        price_stream.add_ticker(ticker, asset_type)
+    if watchlist_scanner:
+        watchlist_scanner.add_ticker(ticker, asset_type)
+    return {"added": ticker, "asset_type": asset_type}
+
+
+@app.delete("/realtime/watchlist/{ticker}")
+async def remove_from_watchlist(ticker: str):
+    """Remove a ticker from the watchlist."""
+    ticker = ticker.strip().upper()
+    if price_stream:
+        price_stream.remove_ticker(ticker)
+    if watchlist_scanner:
+        watchlist_scanner.remove_ticker(ticker)
+    return {"removed": ticker}
+
+
+@app.post("/realtime/scan/now")
+async def trigger_scan_now():
+    """
+    Manually trigger an immediate scan of the full watchlist.
+    Runs in the background — subscribe to /ws/live for results.
+    """
+    if not watchlist_scanner or not pipeline:
+        raise HTTPException(status_code=503, detail="Scanner not running")
+    asyncio.create_task(watchlist_scanner._scan_all())
+    return {
+        "triggered": True,
+        "watchlist": watchlist_scanner.get_watchlist(),
+        "message": "Scan started — subscribe to /ws/live for results",
     }
 
 

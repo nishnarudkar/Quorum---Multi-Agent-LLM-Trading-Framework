@@ -74,6 +74,12 @@ NEWS_LOOKBACK_DAYS = int(os.getenv("NEWS_LOOKBACK_DAYS", "7"))
 # Data cache TTL (seconds) — avoids hammering yfinance/CCXT for same ticker
 DATA_CACHE_TTL = int(os.getenv("DATA_CACHE_TTL", "300"))   # 5 minutes
 
+# ─── Real-Time ────────────────────────────────────────────────
+PRICE_POLL_INTERVAL = int(os.getenv("PRICE_POLL_INTERVAL", "15"))       # seconds between price updates
+SCAN_INTERVAL_MINUTES = int(os.getenv("SCAN_INTERVAL_MINUTES", "60"))   # minutes between full scans
+SCAN_COOLDOWN_MINUTES = int(os.getenv("SCAN_COOLDOWN_MINUTES", "30"))   # min gap between same-ticker scans
+ALERT_CONFIDENCE_THRESHOLD = float(os.getenv("ALERT_CONFIDENCE_THRESHOLD", "0.65"))  # min confidence to alert
+
 # ─── Alerts ────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
