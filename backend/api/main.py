@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Optional
 from contextlib import asynccontextmanager
 
+import pandas as pd
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
@@ -346,10 +347,27 @@ async def analyze_ticker(request: AnalyzeRequest):
 
 @app.get("/portfolio")
 async def get_portfolio():
-    """Get current portfolio state."""
+    """Get current portfolio state (merged with Alpaca if active)."""
     if not trade_db:
         raise HTTPException(status_code=503, detail="Database not initialized")
-    return await trade_db.get_current_portfolio()
+    
+    local_portfolio = await trade_db.get_current_portfolio()
+    
+    if alpaca_provider.is_active:
+        try:
+            account = alpaca_provider.get_account_info()
+            if account:
+                return {
+                    **local_portfolio,
+                    "cash": account.get("cash", local_portfolio["cash"]),
+                    "equity": account.get("equity", local_portfolio["equity"]),
+                    "total_value": account.get("equity", local_portfolio["total_value"]),
+                    "source": "alpaca"
+                }
+        except Exception as e:
+            logger.warning(f"Failed to fetch live Alpaca portfolio: {e}")
+            
+    return {**local_portfolio, "source": "local"}
 
 
 @app.get("/portfolio/history")
@@ -388,15 +406,39 @@ async def get_price(ticker: str, asset_type: str = "stock"):
     """Get current price and fundamental data."""
     ticker = ticker.strip().upper()
     if asset_type == "crypto":
+        # Try Alpaca first for crypto
+        if alpaca_provider.is_active:
+            price = alpaca_provider.get_current_price(ticker, asset_type="crypto")
+            if price:
+                return {
+                    "ticker": ticker,
+                    "price": price,
+                    "info": crypto_provider.get_ticker_info(ticker),
+                    "source": "alpaca"
+                }
         return {
             "ticker": ticker,
             "price": crypto_provider.get_current_price(ticker),
             "info": crypto_provider.get_ticker_info(ticker),
+            "source": "ccxt"
         }
+    
+    # Stock: Try Alpaca first
+    if alpaca_provider.is_active:
+        price = alpaca_provider.get_current_price(ticker, asset_type="stock")
+        if price:
+            return {
+                "ticker": ticker,
+                "price": price,
+                "fundamentals": stock_provider.get_fundamentals(ticker),
+                "source": "alpaca"
+            }
+
     return {
         "ticker": ticker,
         "price": stock_provider.get_current_price(ticker),
         "fundamentals": stock_provider.get_fundamentals(ticker),
+        "source": "yfinance"
     }
 
 
@@ -405,14 +447,26 @@ async def get_price_chart(ticker: str, asset_type: str = "stock"):
     """Get OHLCV data for candlestick charts."""
     ticker = ticker.strip().upper()
     try:
-        if asset_type == "crypto":
-            df = crypto_provider.get_price_data(ticker)
-            col_map = {"open": "Open", "high": "High", "low": "Low", "close": "Close", "volume": "Volume"}
-        else:
-            df = stock_provider.get_price_data(ticker)
-            col_map = {"Open": "Open", "High": "High", "Low": "Low", "Close": "Close", "Volume": "Volume"}
+        df = pd.DataFrame()
+        source = "unknown"
+
+        # Try Alpaca first if active
+        if alpaca_provider.is_active:
+            df = alpaca_provider.get_price_data(ticker, asset_type=asset_type)
+            if not df.empty:
+                source = "alpaca"
+
+        # Fallback to yfinance/ccxt
+        if df.empty:
+            if asset_type == "crypto":
+                df = crypto_provider.get_price_data(ticker)
+                source = "ccxt"
+            else:
+                df = stock_provider.get_price_data(ticker)
+                source = "yfinance"
 
         if df.empty:
+            logger.warning(f"No chart data found for {ticker} (type: {asset_type})")
             return []
 
         records = []
