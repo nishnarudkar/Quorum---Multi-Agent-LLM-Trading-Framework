@@ -18,7 +18,16 @@ Locus provides AI agents with a USDC wallet on Base, spending controls, and a Ch
 
 ## Setup
 
-### Option A — Auto-Registration (Recommended for Hackathon)
+### Production (Live)
+
+The backend is deployed at `https://quorum-backend-74691596771.us-central1.run.app`.
+The LocusFounder storefront is live at `https://svc-mp4160jcaxqzmks9.buildwithlocus.com`.
+
+No local setup needed to use the live system.
+
+### Local Development
+
+Leave `LOCUS_API_KEY` blank in your `.env`. On first startup, the `LocusFounderAgent` calls the Locus beta self-registration endpoint:
 
 Leave `LOCUS_API_KEY` blank in your `.env`. On first startup, the `LocusFounderAgent` calls the Locus beta self-registration endpoint:
 
@@ -57,7 +66,7 @@ curl -X POST https://beta-api.paywithlocus.com/api/gift-code-requests \
 ### 1. Create a Checkout Session
 
 ```bash
-curl -X POST http://localhost:8000/locus/checkout \
+curl -X POST https://quorum-backend-74691596771.us-central1.run.app/locus/checkout \
   -H "Content-Type: application/json" \
   -d '{"ticker": "AAPL", "asset_type": "stock"}'
 ```
@@ -82,7 +91,7 @@ The client opens `checkout_url` and pays $5 USDC. The checkout page is machine-r
 ### 3. Poll for Confirmation
 
 ```bash
-curl http://localhost:8000/locus/checkout/abc123.../status
+curl https://quorum-backend-74691596771.us-central1.run.app/locus/checkout/abc123.../status
 ```
 
 Once paid, the response includes `"paid": true` and `"analysis_triggered": true`. The pipeline starts automatically in the background.
@@ -99,14 +108,14 @@ For demos without real USDC, use the mock payment endpoint:
 
 ```bash
 # 1. Create session
-curl -X POST http://localhost:8000/locus/checkout \
+curl -X POST https://quorum-backend-74691596771.us-central1.run.app/locus/checkout \
   -d '{"ticker": "NVDA", "asset_type": "stock"}'
 
 # 2. Simulate payment (dev only)
-curl -X POST http://localhost:8000/locus/mock-pay/{session_id}
+curl -X POST https://quorum-backend-74691596771.us-central1.run.app/locus/mock-pay/{session_id}
 
 # 3. Poll status — analysis triggers automatically
-curl http://localhost:8000/locus/checkout/{session_id}/status
+curl https://quorum-backend-74691596771.us-central1.run.app/locus/checkout/{session_id}/status
 ```
 
 Mock sessions are identified by a `"mock": true` field in the response. They auto-confirm without hitting the Locus API.
@@ -116,7 +125,7 @@ Mock sessions are identified by a `"mock": true` field in the response. They aut
 ## Checking Wallet Balance
 
 ```bash
-curl http://localhost:8000/locus/wallet
+curl https://quorum-backend-74691596771.us-central1.run.app/locus/wallet
 ```
 
 ```json
@@ -133,7 +142,7 @@ curl http://localhost:8000/locus/wallet
 ## Revenue Tracking
 
 ```bash
-curl http://localhost:8000/locus/revenue
+curl https://quorum-backend-74691596771.us-central1.run.app/locus/revenue
 ```
 
 ```json
@@ -155,7 +164,7 @@ curl http://localhost:8000/locus/revenue
 The `/locus/business` endpoint returns the public-facing service catalog:
 
 ```bash
-curl http://localhost:8000/locus/business
+curl https://quorum-backend-74691596771.us-central1.run.app/locus/business
 ```
 
 ```json

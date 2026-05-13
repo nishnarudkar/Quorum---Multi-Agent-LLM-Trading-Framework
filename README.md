@@ -8,6 +8,17 @@ Built for the [Locus Paygentic Hackathon Week 4 — LocusFounder](https://docs.p
 
 ---
 
+## Live Deployment
+
+| Service | URL |
+|:--------|:----|
+| Frontend | https://quorum-frontend-74691596771.us-central1.run.app |
+| Backend API | https://quorum-backend-74691596771.us-central1.run.app |
+| API Docs | https://quorum-backend-74691596771.us-central1.run.app/docs |
+| Storefront | https://svc-mp4160jcaxqzmks9.buildwithlocus.com |
+
+---
+
 ## What It Does
 
 Quorum is not a trading tool that assists a human. It **is** the business. When a client submits a ticker and pays $5 USDC via Locus Checkout, Quorum's 13-agent pipeline runs autonomously and delivers a full institutional-grade research report. Revenue flows into the agent's Locus wallet. No human is in the loop.
@@ -182,7 +193,9 @@ quorum/
 - Groq API key — free at [console.groq.com](https://console.groq.com)
 - Locus account — free at [beta.paywithlocus.com](https://beta.paywithlocus.com) (use code `PAYGENTIC`)
 
-### Backend
+### Run Locally
+
+**Backend**
 
 ```bash
 cd backend
@@ -198,16 +211,13 @@ pip install -r requirements.txt
 
 cp .env.example .env
 # Set GROQ_API_KEY in .env
-# Optionally set LOCUS_API_KEY — or leave blank for auto-registration
 
 python -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-On first startup, if `LOCUS_API_KEY` is not set, the agent will self-register with Locus and save credentials to `backend/db/locus_credentials.json`.
-
 API docs: `http://localhost:8000/docs`
 
-### Frontend
+**Frontend**
 
 ```bash
 cd frontend
@@ -216,6 +226,44 @@ npm run dev
 ```
 
 Frontend: `http://localhost:3000`
+
+### Deploy to Google Cloud Run
+
+**Backend**
+
+```bash
+cd backend
+
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/quorum-backend
+
+gcloud run deploy quorum-backend \
+  --image gcr.io/YOUR_PROJECT_ID/quorum-backend \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --timeout 3600 \
+  --memory 2Gi \
+  --set-env-vars GROQ_API_KEY=your_key,LOCUS_API_KEY=your_key,TELEGRAM_BOT_TOKEN=your_token,TELEGRAM_CHAT_ID=your_chat_id,CORS_ORIGINS=https://your-frontend.run.app
+```
+
+**Frontend**
+
+```bash
+cd frontend
+
+# Build the standalone Next.js image
+docker build -t gcr.io/YOUR_PROJECT_ID/quorum-frontend \
+  --build-arg NEXT_PUBLIC_API_URL=https://your-backend.run.app \
+  --build-arg NEXT_PUBLIC_WS_URL=wss://your-backend.run.app .
+
+docker push gcr.io/YOUR_PROJECT_ID/quorum-frontend
+
+gcloud run deploy quorum-frontend \
+  --image gcr.io/YOUR_PROJECT_ID/quorum-frontend \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+```
 
 ---
 

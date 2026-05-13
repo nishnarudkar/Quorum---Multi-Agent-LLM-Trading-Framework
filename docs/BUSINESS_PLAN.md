@@ -106,6 +106,12 @@ The live demo shows the complete autonomous business loop:
 
 Total time from payment to report: under 5 minutes.
 
+**Live URLs:**
+- Storefront: https://svc-mp4160jcaxqzmks9.buildwithlocus.com
+- Backend API: https://quorum-backend-74691596771.us-central1.run.app
+- Frontend Dashboard: https://quorum-frontend-74691596771.us-central1.run.app
+- API Docs: https://quorum-backend-74691596771.us-central1.run.app/docs
+
 ---
 
 ## Roadmap

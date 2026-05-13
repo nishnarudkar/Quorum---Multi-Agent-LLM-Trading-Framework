@@ -1,8 +1,10 @@
 # Quorum API Reference
 
-Base URL: `http://localhost:8000`
+Base URL (production): `https://quorum-backend-74691596771.us-central1.run.app`
 
-Interactive docs: `http://localhost:8000/docs`
+Base URL (local): `http://localhost:8000`
+
+Interactive docs: `https://quorum-backend-74691596771.us-central1.run.app/docs`
 
 ---
 
