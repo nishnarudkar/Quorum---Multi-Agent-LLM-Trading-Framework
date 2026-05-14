@@ -12,8 +12,10 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function PriceTicker() {
     const [prices, setPrices] = useState<PriceData[]>([]);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
         const fetchPrices = async () => {
             try {
                 const res = await fetch(`${API_BASE}/realtime/prices`);
@@ -40,7 +42,7 @@ export default function PriceTicker() {
         return () => clearInterval(interval);
     }, []);
 
-    if (prices.length === 0) return null;
+    if (!mounted || prices.length === 0) return null;
 
     return (
         <div className="price-ticker-bar">

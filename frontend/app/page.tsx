@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import PriceTicker from '@/components/PriceTicker';
-import CheckoutModal from '@/components/CheckoutModal';
+import dynamic from 'next/dynamic';
+
+const PriceTicker = dynamic(() => import('@/components/PriceTicker'), { ssr: false });
+const CheckoutModal = dynamic(() => import('@/components/CheckoutModal'), { ssr: false });
 
 export default function LandingPage() {
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -224,13 +226,6 @@ export default function LandingPage() {
                 }
             `}</style>
 
-            <PriceTicker />
-
-            <CheckoutModal 
-                isOpen={isCheckoutOpen} 
-                onClose={() => setIsCheckoutOpen(false)} 
-            />
-
             <header className="nav">
                 <div className="nav-inner">
                     <div className="logo"><span className="logo-dot"></span>QUORUM</div>
@@ -395,7 +390,7 @@ export default function LandingPage() {
                                     <li>Judge verdict + executable trade plan</li>
                                     <li>Delivered in &lt; 5 minutes</li>
                                 </ul>
-                                <Link href="/dashboard" className="btn" style={{ width: '100%', textAlign: 'center' }}>Run a report</Link>
+                                <button onClick={() => setIsCheckoutOpen(true)} className="btn" style={{ width: '100%', textAlign: 'center' }}>Run a report</button>
                             </div>
                             <div className="price feature">
                                 <div className="tag-rec">▸ RECOMMENDED</div>
@@ -409,7 +404,7 @@ export default function LandingPage() {
                                     <li>Priority queue when load is high</li>
                                     <li>Export to PDF for your records</li>
                                 </ul>
-                                <Link href="/dashboard" className="btn" style={{ width: '100%', textAlign: 'center' }}>Buy 5-pack</Link>
+                                <button onClick={() => setIsCheckoutOpen(true)} className="btn" style={{ width: '100%', textAlign: 'center' }}>Buy 5-pack</button>
                             </div>
                         </div>
                     </div>
@@ -443,7 +438,7 @@ export default function LandingPage() {
                     <div className="wrap">
                         <h2>Pick a ticker. Let thirteen analysts fight it out.</h2>
                         <p>Five minutes. Five dollars. A transcript you can actually defend in a drawdown.</p>
-                        <Link href="/dashboard" className="btn">Run a report</Link>
+                        <button onClick={() => setIsCheckoutOpen(true)} className="btn">Run a report</button>
                     </div>
                 </section>
             </main>
@@ -455,6 +450,12 @@ export default function LandingPage() {
                     <div>Not financial advice. Markets are risky. Read the transcript.</div>
                 </div>
             </footer>
+
+            <PriceTicker />
+            <CheckoutModal 
+                isOpen={isCheckoutOpen} 
+                onClose={() => setIsCheckoutOpen(false)} 
+            />
         </div>
     );
 }
