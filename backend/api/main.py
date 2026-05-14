@@ -758,7 +758,7 @@ async def _run_paid_analysis(
         })
 
 
-@app.post("/locus/mock-pay/{session_id}")
+@app.get("/locus/mock-pay/{session_id}")
 async def mock_pay(session_id: str):
     """
     Development endpoint: simulate a USDC payment for a checkout session.
