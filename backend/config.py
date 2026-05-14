@@ -102,5 +102,8 @@ ANALYSIS_PRICE_USDC = float(os.getenv("ANALYSIS_PRICE_USDC", "5.00"))
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("API_PORT", "8000"))
 CORS_ORIGINS = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    "CORS_ORIGINS", 
+    "http://localhost:3000,http://127.0.0.1:3000,"
+    "https://quorum-frontend-74691596771.us-central1.run.app,"
+    "https://svc-mp4160jcaxqzmks9.buildwithlocus.com"
 ).split(",")
