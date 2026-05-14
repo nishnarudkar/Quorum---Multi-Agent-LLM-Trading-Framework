@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import PriceTicker from '@/components/PriceTicker';
+import CheckoutModal from '@/components/CheckoutModal';
 
 export default function LandingPage() {
+    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
     useEffect(() => {
         const yearSpan = document.getElementById('y');
         if (yearSpan) yearSpan.textContent = new Date().getFullYear().toString();
@@ -221,6 +224,13 @@ export default function LandingPage() {
                 }
             `}</style>
 
+            <PriceTicker />
+
+            <CheckoutModal 
+                isOpen={isCheckoutOpen} 
+                onClose={() => setIsCheckoutOpen(false)} 
+            />
+
             <header className="nav">
                 <div className="nav-inner">
                     <div className="logo"><span className="logo-dot"></span>QUORUM</div>
@@ -230,7 +240,7 @@ export default function LandingPage() {
                         <a href="#pricing">Pricing</a>
                         <a href="#faq">FAQ</a>
                     </nav>
-                    <Link href="/dashboard" className="btn" style={{ padding: '10px 18px', fontSize: '.78rem' }}>Run a report</Link>
+                    <button onClick={() => setIsCheckoutOpen(true)} className="btn" style={{ padding: '10px 18px', fontSize: '.78rem' }}>Run a report</button>
                 </div>
             </header>
 
@@ -241,7 +251,7 @@ export default function LandingPage() {
                         <h1>13 AI analysts will argue your next trade, before you make it.</h1>
                         <p className="lead">Institutional-grade research delivered in five minutes for the price of a coffee. Bull versus bear, in writing. Risk committee in dissent. Judge on the record.</p>
                         <div className="hero-cta">
-                            <Link href="/dashboard" className="btn">Run a report — $5</Link>
+                            <button onClick={() => setIsCheckoutOpen(true)} className="btn">Run a report — $5</button>
                             <a href="#sample" className="btn btn-ghost">See a sample</a>
                         </div>
                         <div className="hero-meta">USDC or card · delivered &lt; 5 min · no subscription</div>
