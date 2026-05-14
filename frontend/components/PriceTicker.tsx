@@ -21,7 +21,15 @@ export default function PriceTicker() {
                 const res = await fetch(`${API_BASE}/realtime/prices`);
                 if (res.ok) {
                     const data = await res.json();
-                    setPrices(data);
+                    // Convert dict {"TICKER": {...}} to array for the ticker
+                    const arrayData: PriceData[] = Object.values(data).map((item: any) => ({
+                        symbol: item.ticker,
+                        price: item.price,
+                        change_percent: item.asset_type === 'crypto' 
+                            ? item.change_pct_24h || 0 
+                            : item.change_pct_1d || 0
+                    }));
+                    setPrices(arrayData);
                 } else {
                     // Fallback to placeholders if API not ready
                     setPrices([
