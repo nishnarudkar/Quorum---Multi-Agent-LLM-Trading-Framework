@@ -16,7 +16,7 @@ import httpx
 
 logger = logging.getLogger("quorum.locus.founder")
 
-LOCUS_BETA_API = "https://beta-api.paywithlocus.com/api"
+LOCUS_BETA_API = "https://api.locusfounder.com/api"
 CREDENTIALS_PATH = Path(__file__).parent.parent / "db" / "locus_credentials.json"
 
 

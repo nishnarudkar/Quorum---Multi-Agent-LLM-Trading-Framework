@@ -91,7 +91,7 @@ async def create_checkout_session(
             asset_type=asset_type,
             price_usdc=ANALYSIS_PRICE_USDC,
             locus_session_id=f"mock_{session_id[:8]}",
-            checkout_url=f"http://localhost:8000/locus/mock-pay/{session_id}",
+            checkout_url=f"/locus/mock-pay/{session_id}",
         )
         _sessions[session_id] = session
         return {**session.to_dict(), "mock": True}
@@ -116,8 +116,18 @@ async def create_checkout_session(
             resp.raise_for_status()
             data = resp.json()
 
-        locus_session_id = data.get("id") or data.get("sessionId")
-        checkout_url = data.get("url") or data.get("checkoutUrl")
+        # Handle both flat and wrapped (data: {}) response structures
+        if "data" in data and isinstance(data["data"], dict):
+            locus_data = data["data"]
+        else:
+            locus_data = data
+
+        locus_session_id = locus_data.get("id") or locus_data.get("sessionId")
+        checkout_url = locus_data.get("url") or locus_data.get("checkoutUrl")
+
+        if not checkout_url:
+            logger.error(f"Locus API response missing checkout URL: {data}")
+            raise ValueError("Locus API did not return a checkout URL")
 
         session = CheckoutSession(
             session_id=session_id,
@@ -144,7 +154,7 @@ async def create_checkout_session(
             asset_type=asset_type,
             price_usdc=ANALYSIS_PRICE_USDC,
             locus_session_id=f"fallback_{session_id[:8]}",
-            checkout_url=f"http://localhost:8000/locus/mock-pay/{session_id}",
+            checkout_url=f"/locus/mock-pay/{session_id}",
         )
         _sessions[session_id] = session
         return {**session.to_dict(), "mock": True, "locus_error": str(e)}

@@ -37,11 +37,25 @@ export default function CheckoutModal({ isOpen, onClose, initialTicker = '' }: C
 
             const session = await res.json();
             
+            if (!session.session_id) {
+                throw new Error("No session ID returned from server");
+            }
+
             // Store session ID for the report page to pick up
             localStorage.setItem('quorum_session_id', session.session_id);
             
-            // Open the Locus checkout URL in a new tab
-            window.open(session.checkout_url, '_blank');
+            // Handle the checkout URL (might be relative for mock, or absolute for Locus)
+            let finalUrl = session.checkout_url;
+            if (finalUrl && finalUrl.startsWith('/')) {
+                finalUrl = `${API_BASE}${finalUrl}`;
+            }
+
+            if (finalUrl) {
+                // Open the Locus checkout URL in a new tab
+                window.open(finalUrl, '_blank');
+            } else {
+                console.error("Missing checkout_url in session:", session);
+            }
             
             // Redirect current page to the report status page
             window.location.href = `/report?session_id=${session.session_id}`;
