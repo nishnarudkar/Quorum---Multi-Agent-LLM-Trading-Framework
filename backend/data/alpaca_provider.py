@@ -1,21 +1,30 @@
 """
 Quorum — Alpaca Market Provider
 Handles real-time market data and trade execution via Alpaca.
+Gracefully degrades if alpaca-py is not installed or keys are not set.
 """
 
 import logging
 import pandas as pd
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
-from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import MarketOrderRequest, GetOrdersRequest
-from alpaca.trading.enums import OrderSide, TimeInForce, AssetClass
-from alpaca.data.historical import StockHistoricalDataClient, CryptoHistoricalDataClient
-from alpaca.data.requests import StockBarsRequest, CryptoBarsRequest
-from alpaca.data.timeframe import TimeFrame
-
 from config import ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_PAPER
+
+logger = logging.getLogger("quorum.alpaca")
+
+# Guard against missing alpaca-py package
+try:
+    from alpaca.trading.client import TradingClient
+    from alpaca.trading.requests import MarketOrderRequest
+    from alpaca.trading.enums import OrderSide, TimeInForce
+    from alpaca.data.historical import StockHistoricalDataClient, CryptoHistoricalDataClient
+    from alpaca.data.requests import StockBarsRequest, CryptoBarsRequest
+    from alpaca.data.timeframe import TimeFrame
+    _ALPACA_AVAILABLE = True
+except ImportError:
+    _ALPACA_AVAILABLE = False
+    logger.warning("alpaca-py not installed — Alpaca integration disabled")
 
 logger = logging.getLogger("quorum.alpaca")
 
@@ -26,11 +35,15 @@ class AlpacaProvider:
         self.api_key = ALPACA_API_KEY
         self.secret_key = ALPACA_SECRET_KEY
         self.paper = ALPACA_PAPER
-        
+
         self._trading_client = None
         self._stock_data_client = None
         self._crypto_data_client = None
-        
+
+        if not _ALPACA_AVAILABLE:
+            logger.warning("AlpacaProvider inactive — alpaca-py not installed")
+            return
+
         if self.api_key and self.secret_key:
             try:
                 self._trading_client = TradingClient(self.api_key, self.secret_key, paper=self.paper)
@@ -40,7 +53,7 @@ class AlpacaProvider:
             except Exception as e:
                 logger.error(f"Failed to initialize Alpaca clients: {e}")
         else:
-            logger.warning("Alpaca API keys not set. Provider will be inactive.")
+            logger.info("Alpaca API keys not set — provider inactive")
 
     @property
     def is_active(self) -> bool:
@@ -94,14 +107,14 @@ class AlpacaProvider:
     # ─── Execution ────────────────────────────────────────────
 
     async def execute_trade(
-        self, 
-        ticker: str, 
-        action: str, 
-        quantity: float, 
+        self,
+        ticker: str,
+        action: str,
+        quantity: float,
         asset_type: str = "stock"
     ) -> Dict[str, Any]:
         """Execute a market order on Alpaca."""
-        if not self.is_active:
+        if not self.is_active or not _ALPACA_AVAILABLE:
             return {"error": "Alpaca API not configured"}
 
         if action not in ["buy", "sell"]:
@@ -109,22 +122,18 @@ class AlpacaProvider:
 
         try:
             side = OrderSide.BUY if action == "buy" else OrderSide.SELL
-            
-            # For crypto, Alpaca expects symbols like BTC/USD or BTCUSD
-            # CCXT uses BTC/USD, Alpaca SDK usually handles it but let's be safe
             order_ticker = ticker.replace("/", "")
-            
+
             order_request = MarketOrderRequest(
                 symbol=order_ticker,
                 qty=quantity,
                 side=side,
                 time_in_force=TimeInForce.DAY
             )
-            
+
             order = self._trading_client.submit_order(order_data=order_request)
-            
             logger.info(f"Alpaca order submitted: {action} {quantity} {ticker} (ID: {order.id})")
-            
+
             return {
                 "order_id": str(order.id),
                 "status": str(order.status),
