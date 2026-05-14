@@ -13,7 +13,7 @@ from config import ALPACA_API_KEY, ALPACA_SECRET_KEY, ALPACA_PAPER
 
 logger = logging.getLogger("quorum.alpaca")
 
-# Guard against missing alpaca-py package
+# Guard against missing alpaca-py package — app starts fine without it
 try:
     from alpaca.trading.client import TradingClient
     from alpaca.trading.requests import MarketOrderRequest
@@ -26,7 +26,6 @@ except ImportError:
     _ALPACA_AVAILABLE = False
     logger.warning("alpaca-py not installed — Alpaca integration disabled")
 
-logger = logging.getLogger("quorum.alpaca")
 
 class AlpacaProvider:
     """Provides market data and trade execution via Alpaca API."""
@@ -41,14 +40,20 @@ class AlpacaProvider:
         self._crypto_data_client = None
 
         if not _ALPACA_AVAILABLE:
-            logger.warning("AlpacaProvider inactive — alpaca-py not installed")
+            logger.info("AlpacaProvider inactive — alpaca-py not installed")
             return
 
         if self.api_key and self.secret_key:
             try:
-                self._trading_client = TradingClient(self.api_key, self.secret_key, paper=self.paper)
-                self._stock_data_client = StockHistoricalDataClient(self.api_key, self.secret_key)
-                self._crypto_data_client = CryptoHistoricalDataClient(self.api_key, self.secret_key)
+                self._trading_client = TradingClient(
+                    self.api_key, self.secret_key, paper=self.paper
+                )
+                self._stock_data_client = StockHistoricalDataClient(
+                    self.api_key, self.secret_key
+                )
+                self._crypto_data_client = CryptoHistoricalDataClient(
+                    self.api_key, self.secret_key
+                )
                 logger.info(f"AlpacaProvider initialized (Paper={self.paper})")
             except Exception as e:
                 logger.error(f"Failed to initialize Alpaca clients: {e}")
@@ -61,47 +66,48 @@ class AlpacaProvider:
 
     # ─── Market Data ──────────────────────────────────────────
 
-    def get_price_data(self, ticker: str, asset_type: str = "stock", days: int = 30) -> pd.DataFrame:
+    def get_price_data(
+        self, ticker: str, asset_type: str = "stock", days: int = 30
+    ) -> pd.DataFrame:
         """Get OHLCV price data for the last N days."""
         if not self.is_active:
             return pd.DataFrame()
-
         try:
             start_time = datetime.now() - timedelta(days=days)
-            
             if asset_type == "stock":
-                request_params = StockBarsRequest(
-                    symbol_or_symbols=ticker,
-                    timeframe=TimeFrame.Day,
-                    start=start_time
+                bars = self._stock_data_client.get_stock_bars(
+                    StockBarsRequest(
+                        symbol_or_symbols=ticker,
+                        timeframe=TimeFrame.Day,
+                        start=start_time,
+                    )
                 )
-                bars = self._stock_data_client.get_stock_bars(request_params)
             else:
-                request_params = CryptoBarsRequest(
-                    symbol_or_symbols=ticker,
-                    timeframe=TimeFrame.Day,
-                    start=start_time
+                bars = self._crypto_data_client.get_crypto_bars(
+                    CryptoBarsRequest(
+                        symbol_or_symbols=ticker,
+                        timeframe=TimeFrame.Day,
+                        start=start_time,
+                    )
                 )
-                bars = self._crypto_data_client.get_crypto_bars(request_params)
-            
             df = bars.df
             if df.empty:
                 return df
-                
-            # Alpaca multi-index df (symbol, timestamp) -> single index (timestamp)
+            # Alpaca returns a MultiIndex (symbol, timestamp) — flatten to timestamp
             if isinstance(df.index, pd.MultiIndex):
                 df = df.xs(ticker, level=0)
-            
             return df
         except Exception as e:
-            logger.error(f"Alpaca failed to fetch price data for {ticker}: {e}")
+            logger.error(f"Alpaca price data failed for {ticker}: {e}")
             return pd.DataFrame()
 
-    def get_current_price(self, ticker: str, asset_type: str = "stock") -> Optional[float]:
+    def get_current_price(
+        self, ticker: str, asset_type: str = "stock"
+    ) -> Optional[float]:
         """Get the latest close price."""
-        df = self.get_price_data(ticker, asset_type, days=1)
-        if not df.empty:
-            return float(df.iloc[-1]["close"])
+        df = self.get_price_data(ticker, asset_type, days=2)
+        if not df.empty and "close" in df.columns:
+            return float(df["close"].iloc[-1])
         return None
 
     # ─── Execution ────────────────────────────────────────────
@@ -111,43 +117,42 @@ class AlpacaProvider:
         ticker: str,
         action: str,
         quantity: float,
-        asset_type: str = "stock"
+        asset_type: str = "stock",
     ) -> Dict[str, Any]:
         """Execute a market order on Alpaca."""
         if not self.is_active or not _ALPACA_AVAILABLE:
-            return {"error": "Alpaca API not configured"}
-
-        if action not in ["buy", "sell"]:
+            return {"error": "Alpaca not configured"}
+        if action not in ("buy", "sell"):
             return {"error": f"Invalid action: {action}"}
-
         try:
             side = OrderSide.BUY if action == "buy" else OrderSide.SELL
+            # Alpaca expects BTCUSD not BTC/USD
             order_ticker = ticker.replace("/", "")
-
-            order_request = MarketOrderRequest(
-                symbol=order_ticker,
-                qty=quantity,
-                side=side,
-                time_in_force=TimeInForce.DAY
+            order = self._trading_client.submit_order(
+                MarketOrderRequest(
+                    symbol=order_ticker,
+                    qty=quantity,
+                    side=side,
+                    time_in_force=TimeInForce.DAY,
+                )
             )
-
-            order = self._trading_client.submit_order(order_data=order_request)
-            logger.info(f"Alpaca order submitted: {action} {quantity} {ticker} (ID: {order.id})")
-
+            logger.info(
+                f"Alpaca order submitted: {action} {quantity} {ticker} (ID: {order.id})"
+            )
             return {
                 "order_id": str(order.id),
                 "status": str(order.status),
                 "ticker": ticker,
                 "action": action,
                 "quantity": quantity,
-                "client": "alpaca"
+                "client": "alpaca",
             }
         except Exception as e:
-            logger.error(f"Alpaca trade execution failed for {ticker}: {e}")
+            logger.error(f"Alpaca execution failed for {ticker}: {e}")
             return {"error": str(e)}
 
     def get_account_info(self) -> Dict[str, Any]:
-        """Get Alpaca account details (balance, buying power)."""
+        """Get Alpaca account details."""
         if not self.is_active:
             return {}
         try:
@@ -157,7 +162,7 @@ class AlpacaProvider:
                 "buying_power": float(account.buying_power),
                 "cash": float(account.cash),
                 "currency": account.currency,
-                "status": account.status
+                "status": str(account.status),
             }
         except Exception as e:
             logger.error(f"Failed to get Alpaca account info: {e}")
