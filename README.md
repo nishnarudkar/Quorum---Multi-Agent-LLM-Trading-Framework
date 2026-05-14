@@ -19,43 +19,82 @@ Built for the [Locus Paygentic Hackathon Week 4 — LocusFounder](https://docs.p
 
 ---
 
-## What It Does
+## Architecture Overview
 
-Quorum is not a trading tool that assists a human. It **is** the business. When a client submits a ticker and pays $5 USDC via Locus Checkout, Quorum's 13-agent pipeline runs autonomously and delivers a full institutional-grade research report. Revenue flows into the agent's Locus wallet. No human is in the loop.
+```mermaid
+graph TB
+    subgraph "Frontend (Next.js)"
+        UI[Dashboard & Landing Page]
+        CH[Price Charts & Real-time Logs]
+        PAY[Locus Checkout Integration]
+    end
 
-```
-Client pays $5 USDC via Locus Checkout
-              |
-              v
-LocusFounder Agent confirms payment
-              |
-              v
-13-agent pipeline runs (parallel analysis → debate → risk committee)
-              |
-              v
-Report delivered via WebSocket + REST
-              |
-              v
-Revenue logged to agent wallet
+    subgraph "Backend (FastAPI)"
+        API[REST API & WebSocket Server]
+        LCA[LocusFounder Business Agent]
+        WLS[Watchlist Scanner & Price Stream]
+    end
+
+    subgraph "Agent Pipeline (LangGraph)"
+        ANL[Market / Sentiment / News / Fundamentals Analysts]
+        DEB[Adversarial Bull vs. Bear Debate]
+        RSC[Risk Committee & Position Sizing]
+        PIP[Analysis Pipeline]
+    end
+
+    subgraph "External Integration"
+        LOC[Locus Payment Platform]
+        WAL[USDC Agent Wallet - Base]
+        MKT[Market Data - Alpaca / Binance]
+    end
+
+    UI -->|Request Analysis| API
+    PAY -->|Checkout Session| LOC
+    LOC -->|Payment Confirmed| LCA
+    LCA -->|Trigger Pipeline| PIP
+    PIP -->|Parallel Analysis| ANL
+    ANL --> DEB
+    DEB --> RSC
+    RSC -->|Final Signal & Report| API
+    API -->|Live Stream| CH
+    WLS -->|Price Feeds| MKT
+    LCA -->|Revenue Management| WAL
 ```
 
 ---
 
-## Agent Pipeline
+---
 
+## Agent Pipeline Flow
+
+```mermaid
+graph TD
+    REQ[User Request: Ticker + Asset Type] -->|Trigger| PIP[Pipeline Start]
+    
+    subgraph "Data Acquisition & Analysis"
+        PIP --> MKT[Market Analyst: Technicals & Price Action]
+        PIP --> SEN[Sentiment Analyst: Social Buzz & Mood]
+        PIP --> NWS[News Analyst: Headlines & Filings]
+        PIP --> FND[Fundamentals Analyst: Ratios & Earnings]
+    end
+
+    MKT & SEN & NWS & FND --> MRG[Merge Reports]
+
+    subgraph "Adversarial Debate"
+        MRG --> BULL[Bull Researcher: Long Case]
+        BULL <--> BEAR[Bear Researcher: Short Case]
+        BEAR --> JDG[Research Judge: Verdict & Thesis]
+    end
+
+    subgraph "Trading Strategy"
+        JDG --> TRD[Trader Agent: Entry, Target, Stop-Loss]
+        TRD --> RSK[Risk Committee: Position Sizing & Safety]
+    end
+
+    RSK --> FIN[Final Institutional Report]
 ```
-                        User Request (ticker + asset type)
-                                       |
-              ┌────────────────────────┼────────────────────────┐
-              |                        |                         |
-       Market Analyst          Sentiment Analyst           News Analyst
-       (technicals,            (social buzz,               (headlines,
-        price action)           market mood)                filings)
-              |                        |                         |
-              |              Fundamentals Analyst                |
-              |              (P/E, revenue, margins)             |
-              |                        |                         |
-              └────────────────────────┼─────────────────────────┘
+
+---
                                        |  parallel fan-out / merge
                                        |
                               Merge Analyst Reports
@@ -81,8 +120,7 @@ Revenue logged to agent wallet
                               Risk Judge (CRO)  ──────────────────────────────┘
                               (approve / modify / reject)
                                        |
-                              Final Trade Decision
-```
+---
 
 ---
 
