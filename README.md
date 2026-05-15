@@ -20,6 +20,17 @@
 
 ---
 
+## Hackathon and Locus Protocol
+
+Quorum was developed specifically for the Locus Paygentic Hackathon (Week 4), participating in the LocusFounder track. The framework is designed to demonstrate how the Locus Protocol can transform traditional AI agent swarms into autonomous revenue-generating businesses.
+
+By leveraging the LocusFounder SDK, Quorum manages its own fiscal lifecycle:
+- Autonomous registration of an agent wallet on the Base network.
+- Real-time USDC payment gating for high-compute analysis tasks.
+- On-chain revenue tracking and session-based access control.
+
+---
+
 ## Introduction
 
 Quorum is an autonomous investment research framework designed for the Locus Paygentic Hackathon. The system utilizes a specialized swarm of 13 LLM agents to conduct deep-dive analysis on stocks and crypto assets. Quorum operates on a "glass-box" philosophy: rather than providing a single opaque score, it exposes the entire adversarial debate between its internal analysts, researchers, and risk officers.
