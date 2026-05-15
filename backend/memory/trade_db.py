@@ -97,9 +97,6 @@ class TradeDB:
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_logs_created ON analysis_logs(created_at DESC)"
             )
-            await db.execute(
-                "CREATE INDEX IF NOT EXISTS idx_logs_session ON analysis_logs(session_id)"
-            )
 
             # ─── Migrations ───────────────────────────────────
             # Safely add columns that may be missing in databases created before
@@ -116,6 +113,10 @@ class TradeDB:
                     await db.execute(sql)
                 except Exception:
                     pass  # Column already exists — safe to ignore
+
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_logs_session ON analysis_logs(session_id)"
+            )
 
             # ─── Seed initial portfolio ───────────────────────
             cursor = await db.execute("SELECT COUNT(*) FROM portfolio_snapshots")
