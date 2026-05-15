@@ -26,11 +26,17 @@ for d in [DATA_DIR, DB_DIR, CHROMA_DIR]:
 
 # ─── Groq LLM ─────────────────────────────────────────────────
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_API_KEYS_RAW = os.getenv("GROQ_API_KEYS", "")
 
-# Validate API key on startup
-if not GROQ_API_KEY:
+# Parse multiple keys if available
+GROQ_API_KEYS = [k.strip() for k in GROQ_API_KEYS_RAW.split(",") if k.strip()]
+if GROQ_API_KEY and GROQ_API_KEY not in GROQ_API_KEYS:
+    GROQ_API_KEYS.insert(0, GROQ_API_KEY)
+
+# Validate API keys on startup
+if not GROQ_API_KEYS:
     logger.warning(
-        "GROQ_API_KEY is not set. Set it in backend/.env before running analyses."
+        "No GROQ_API_KEYS found. Set GROQ_API_KEY or GROQ_API_KEYS in backend/.env"
     )
 
 # Valid Groq models — update here if Groq retires/adds models
