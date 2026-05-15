@@ -51,8 +51,13 @@ export default function CheckoutModal({ isOpen, onClose, initialTicker = '' }: C
             }
 
             if (finalUrl) {
-                // Open the Locus checkout URL in a new tab
-                window.open(finalUrl, '_blank');
+                if (session.mock) {
+                    // For mock sessions, hit the endpoint in the background to simulate payment
+                    await fetch(finalUrl).catch(console.error);
+                } else {
+                    // Open the Locus checkout URL in a new tab
+                    window.open(finalUrl, '_blank');
+                }
             } else {
                 console.error("Missing checkout_url in session:", session);
             }
