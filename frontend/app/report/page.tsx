@@ -154,7 +154,9 @@ function ReportContent() {
         return (
             <div className="war-room">
                 <div className="top-nav">
-                    <div className="brand"><span className="dot"></span>QUORUM / DEBATE_ROOM</div>
+                    <div className="brand">
+                        <img src="/assets/Quorum_logo.png" alt="Quorum" className="logo" />
+                    </div>
                     <div className="session-info">
                         <div className="info-item"><Clock size={12} /> <span>{new Date().toLocaleTimeString()} UTC</span></div>
                         <div className="info-item"><Hash size={12} /> <span>{sessionId?.slice(0, 8)}</span></div>
@@ -246,7 +248,9 @@ function ReportContent() {
     return (
         <div className="war-room report-view">
             <div className="top-nav no-print">
-                <div className="brand"><span className="dot"></span>QUORUM / FINAL_REPORT</div>
+                <div className="brand">
+                    <img src="/assets/Quorum_logo.png" alt="Quorum" className="logo" />
+                </div>
                 <div className="nav-right">
                     <button className="btn-icon-text download-btn" onClick={handleDownloadPDF}>
                         <Download size={16} />
@@ -262,7 +266,7 @@ function ReportContent() {
 
             {/* Print-only Header */}
             <div className="print-only-header">
-                <div className="brand"><span className="dot"></span>QUORUM / INVESTMENT_REPORT</div>
+                <img src="/assets/Quorum_logo.png" alt="Quorum" className="logo" />
                 <div className="print-date">Generated on: {new Date().toLocaleDateString()} · Session: {sessionId?.slice(0, 8)}</div>
             </div>
 
@@ -384,6 +388,7 @@ const styles = `
     }
     .download-btn:hover { background: #6c63ff25; transform: translateY(-1px); }
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 0.9rem; letter-spacing: 0.05em; }
+    .logo { height: 32px; width: auto; object-fit: contain; }
     .brand .dot { width: 8px; height: 8px; background: #6c63ff; box-shadow: 0 0 10px #6c63ff; }
     .session-info { display: flex; gap: 24px; font-size: 0.7rem; color: #8a909c; }
     .info-item { display: flex; align-items: center; gap: 6px; }
