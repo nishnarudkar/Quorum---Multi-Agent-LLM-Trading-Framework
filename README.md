@@ -1,81 +1,67 @@
-# Quorum
+<p align="center">
+  <img src="assets/Quorum_logo.png" width="400" alt="Quorum Logo">
+</p>
 
-**Multi-Agent LLM Trading Framework — Powered by LocusFounder**
+<h1 align="center">Quorum</h1>
 
-Quorum is an autonomous AI trading research firm. It employs 13 specialized LLM agents that analyze stocks and crypto through adversarial debates and a risk committee, then sells those reports for $5 USDC per analysis — with no human staff, no overhead, and no sleep.
+<p align="center">
+  <strong>The Glass-Box AI Investment Framework — Powered by Locus</strong>
+</p>
 
-Built for the [Locus Paygentic Hackathon Week 4 — LocusFounder](https://docs.paywithlocus.com/hackathon) track.
-
----
-
-## Live Deployment
-
-| Service | URL |
-|:--------|:----|
-| Frontend | https://quorum-frontend-74691596771.us-central1.run.app |
-| Backend API | https://quorum-backend-74691596771.us-central1.run.app |
-| API Docs | https://quorum-backend-74691596771.us-central1.run.app/docs |
-| Storefront | https://svc-mp4160jcaxqzmks9.buildwithlocus.com |
+<p align="center">
+  <a href="https://quorum-frontend-74691596771.us-central1.run.app"><strong>Live Demo</strong></a> ·
+  <a href="#architecture"><strong>Architecture</strong></a> ·
+  <a href="#monetization"><strong>Monetization</strong></a> ·
+  <a href="docs/API_REFERENCE.md"><strong>API Reference</strong></a>
+</p>
 
 ---
 
-## Architecture Overview
+## 🏛️ Overview
 
-```mermaid
-graph TB
-    subgraph "Frontend (Next.js)"
-        UI[Dashboard & Landing Page]
-        CH[Price Charts & Real-time Logs]
-        PAY[Locus Checkout Integration]
-    end
+Quorum is an autonomous AI investment research firm that employs a swarm of **13 specialized LLM agents** to analyze global markets. Unlike traditional "black-box" AI tools, Quorum operates as a **glass-box**: every argument, dissent, and rebuttal between agents is streamed live and captured in a high-fidelity institutional report.
 
-    subgraph "Backend (FastAPI)"
-        API[REST API & WebSocket Server]
-        LCA[LocusFounder Business Agent]
-        WLS[Watchlist Scanner & Price Stream]
-    end
+Built for the **Locus Paygentic Hackathon**, Quorum leverages the Locus Protocol to monetize its intelligence, charging **$5 USDC (Base)** per analysis through a decentralized, agent-owned checkout system.
 
-    subgraph "Agent Pipeline (LangGraph)"
-        ANL[Market / Sentiment / News / Fundamentals Analysts]
-        DEB[Adversarial Bull vs. Bear Debate]
-        RSC[Risk Committee & Position Sizing]
-        PIP[Analysis Pipeline]
-    end
-
-    subgraph "External Integration"
-        LOC[Locus Payment Platform]
-        WAL[USDC Agent Wallet - Base]
-        MKT[Market Data - Alpaca / Binance]
-    end
-
-    UI -->|Request Analysis| API
-    PAY -->|Checkout Session| LOC
-    LOC -->|Payment Confirmed| LCA
-    LCA -->|Trigger Pipeline| PIP
-    PIP -->|Parallel Analysis| ANL
-    ANL --> DEB
-    DEB --> RSC
-    RSC -->|Final Signal & Report| API
-    API -->|Live Stream| CH
-    WLS -->|Price Feeds| MKT
-    LCA -->|Revenue Management| WAL
-```
+### 🌟 Key Features
+- **Adversarial Reasoning**: Bull vs. Bear researchers engage in multi-round debates to surface hidden risks.
+- **Risk Committee**: A multi-agent committee (Aggressive, Conservative, Neutral) stress-tests every signal.
+- **Web3 Monetization**: Native USDC payments on the Base network via Locus.
+- **War Room UI**: Real-time telemetry and agent logs streamed via WebSockets.
+- **Glass-Box Reports**: Full transcripts of every agent's thought process — no hidden reasoning.
 
 ---
 
+## 📸 Visual Showcase
+
+### 1. The Command Center
+The landing page allows users to query any Stock or Crypto ticker and initiates the Locus-powered checkout.
+![Landing Page](assets/landing-page.png)
+
+### 2. The War Room
+Once payment is settled, users enter the "War Room" where they watch the 13 agents debate in real-time.
+![Agents Pipeline](assets/Agents_pipeline.jpeg)
+
+### 3. Final Institutional Report
+The result is a comprehensive report card featuring a conviction score, executive summary, and a full adversarial transcript.
+![Sample Report](assets/sample-report.png)
+
 ---
 
-## Agent Pipeline Flow
+## 🤖 The Agent Swarm
 
+Quorum utilizes a sophisticated DAG (Directed Acyclic Graph) powered by **LangGraph** to coordinate its 13 specialists.
+
+### The Pipeline Flow
 ```mermaid
 graph TD
-    REQ[User Request: Ticker + Asset Type] -->|Trigger| PIP[Pipeline Start]
+    REQ[User Request: Ticker] -->|Trigger| PIP[Pipeline Start]
     
-    subgraph "Data Acquisition & Analysis"
-        PIP --> MKT[Market Analyst: Technicals & Price Action]
-        PIP --> SEN[Sentiment Analyst: Social Buzz & Mood]
-        PIP --> NWS[News Analyst: Headlines & Filings]
-        PIP --> FND[Fundamentals Analyst: Ratios & Earnings]
+    subgraph "Data Acquisition"
+        PIP --> MKT[Market Analyst: Technicals]
+        PIP --> SEN[Sentiment Analyst: Social Buzz]
+        PIP --> NWS[News Analyst: Headlines]
+        PIP --> FND[Fundamentals Analyst: Ratios]
     end
 
     MKT & SEN & NWS & FND --> MRG[Merge Reports]
@@ -83,343 +69,80 @@ graph TD
     subgraph "Adversarial Debate"
         MRG --> BULL[Bull Researcher: Long Case]
         BULL <--> BEAR[Bear Researcher: Short Case]
-        BEAR --> JDG[Research Judge: Verdict & Thesis]
+        BEAR --> JDG[Research Judge: Verdict]
     end
 
-    subgraph "Trading Strategy"
-        JDG --> TRD[Trader Agent: Entry, Target, Stop-Loss]
-        TRD --> RSK[Risk Committee: Position Sizing & Safety]
+    subgraph "Risk & Strategy"
+        JDG --> TRD[Trader Agent: Plan Generator]
+        TRD --> RSK[Risk Committee: Stress Test]
     end
 
     RSK --> FIN[Final Institutional Report]
 ```
 
 ---
-                                       |  parallel fan-out / merge
-                                       |
-                              Merge Analyst Reports
-                                       |
-                              Bull Researcher  <──┐
-                              (bullish case)      |  debate loop
-                                       |          |  (2 rounds)
-                              Bear Researcher  ───┘
-                              (bearish case)
-                                       |
-                              Research Judge
-                              (verdict + thesis + confidence)
-                                       |
-                              Trader Agent
-                              (action, entry, target, stop-loss, sizing)
-                                       |
-              ┌────────────────────────┼────────────────────────┐
-              |                        |                         |
-       Aggressive Analyst      Conservative Analyst      Neutral Analyst  <──┐
-              |                        |                         |  risk loop  |
-              └────────────────────────┼─────────────────────────┘  (2 rounds) |
-                                       |                                        |
-                              Risk Judge (CRO)  ──────────────────────────────┘
-                              (approve / modify / reject)
-                                       |
----
+
+## 💳 Monetization (Locus Integration)
+
+Quorum is a fully autonomous business. It uses **Locus** to manage its own revenue and billing:
+
+- **Agent Wallet**: The backend hosts a Locus-managed wallet on the **Base network**.
+- **USDC Settlement**: Reports are priced at **$5.00 USDC**.
+- **Autonomous Checkout**: When a user requests a report, the `LocusFounder` agent generates a unique checkout session and monitors the blockchain for payment confirmation before unlocking the analysis.
 
 ---
 
-## System Architecture
+## 🛠️ Tech Stack
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                         Frontend (Next.js 16)                        │
-│                                                                      │
-│   Dashboard        Agents View        Trade History       Settings   │
-│                                                                      │
-│                        WebSocket + REST                              │
-└──────────────────────────────┬───────────────────────────────────────┘
-                               |
-┌──────────────────────────────┼───────────────────────────────────────┐
-│                         Backend (FastAPI)                            │
-│                               |                                      │
-│   LocusFounder Layer          |                                      │
-│   - Agent wallet (USDC/Base)  |                                      │
-│   - Checkout sessions ($5)    |                                      │
-│   - Revenue tracking          |                                      │
-│                               |                                      │
-│              API Layer  (REST + WebSocket /ws/live)                  │
-│                               |                                      │
-│              LangGraph Pipeline  (DAG with conditional edges)        │
-│                               |                                      │
-│    Analysts     Researchers     Trader     Risk Committee            │
-│    (4 nodes)    (Bull, Bear,    (plan      (Aggressive,              │
-│                  Judge)         generator)  Conservative,            │
-│                                             Neutral, CRO)            │
-│                               |                                      │
-│    LLM Client    Data Providers    Memory Layer    Confidence        │
-│    (Groq +       (yfinance,        (ChromaDB,      Tracker           │
-│     backoff)      CCXT)             SQLite)        (Kelly sizing)    │
-└──────────────────────────────────────────────────────────────────────┘
-                               |
-┌──────────────────────────────┼───────────────────────────────────────┐
-│                    Locus Infrastructure                              │
-│                                                                      │
-│   Agent Wallet (USDC on Base)    Checkout SDK (payment sessions)    │
-│   Spending Controls              Transaction Audit Log              │
-└──────────────────────────────────────────────────────────────────────┘
-```
+| Layer | Technology |
+|:------|:-----------|
+| **Infrastructure** | Google Cloud Run, Locus Protocol (Base) |
+| **Orchestration** | LangGraph, LangChain |
+| **Intelligence** | Groq (Llama 3.3-70B & 3.1-8B) |
+| **Frontend** | Next.js 15, TypeScript, Lucide Icons |
+| **Backend** | FastAPI, WebSockets, Python 3.11 |
+| **Data** | Alpaca Market API, yfinance, CCXT |
+| **Persistence** | SQLite, ChromaDB (Vector Memory) |
 
 ---
 
-## Project Structure
-
-```
-quorum/
-├── backend/
-│   ├── locus/
-│   │   ├── founder_agent.py       # Wallet registration, balance, USDC transfers
-│   │   └── checkout.py            # Checkout session creation and payment confirmation
-│   ├── agents/
-│   │   ├── analysts/
-│   │   │   ├── market_analyst.py
-│   │   │   ├── sentiment_analyst.py
-│   │   │   ├── news_analyst.py
-│   │   │   └── fundamentals_analyst.py
-│   │   ├── researchers/
-│   │   │   └── researchers.py     # Bull, Bear, Research Judge
-│   │   ├── traders/
-│   │   │   ├── trader.py
-│   │   │   └── risk_debaters.py   # Aggressive, Conservative, Neutral, CRO
-│   │   └── confidence.py
-│   ├── api/
-│   │   └── main.py                # FastAPI — REST + WebSocket + Locus endpoints
-│   ├── data/
-│   │   ├── stock_provider.py
-│   │   ├── crypto_provider.py
-│   │   └── ticker_search.py
-│   ├── graph/
-│   │   └── pipeline.py
-│   ├── memory/
-│   │   ├── vector_store.py
-│   │   └── trade_db.py
-│   ├── models/
-│   │   └── schemas.py
-│   ├── utils/
-│   │   ├── json_parser.py
-│   │   └── event_bus.py
-│   ├── config.py
-│   ├── llm_client.py
-│   └── requirements.txt
-├── frontend/
-│   ├── app/
-│   │   ├── page.tsx
-│   │   ├── agents/
-│   │   ├── trades/
-│   │   └── settings/
-│   └── components/
-├── docs/
-│   ├── LOCUS_INTEGRATION.md       # LocusFounder integration guide
-│   ├── BUSINESS_PLAN.md           # One-page business plan for hackathon
-│   └── API_REFERENCE.md           # Complete API reference
-└── README.md
-```
-
----
-
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
+- Python 3.11+ & Node.js 18+
+- [Groq API Key](https://console.groq.com)
+- [Locus Account](https://beta.paywithlocus.com) (Code: `PAYGENTIC`)
 
-- Python 3.11+
-- Node.js 18+
-- Groq API key — free at [console.groq.com](https://console.groq.com)
-- Locus account — free at [beta.paywithlocus.com](https://beta.paywithlocus.com) (use code `PAYGENTIC`)
+### Local Setup
 
-### Run Locally
+1. **Clone & Install Backend**
+   ```bash
+   cd backend
+   python -m venv venv
+   source venv/bin/activate  # venv\Scripts\activate on Windows
+   pip install -r requirements.txt
+   cp .env.example .env  # Add your GROQ_API_KEY
+   python -m uvicorn api.main:app --reload
+   ```
 
-**Backend**
+2. **Install Frontend**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
-```bash
-cd backend
-
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-# macOS / Linux
-source venv/bin/activate
-
-pip install -r requirements.txt
-
-cp .env.example .env
-# Set GROQ_API_KEY in .env
-
-python -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-API docs: `http://localhost:8000/docs`
-
-**Frontend**
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend: `http://localhost:3000`
-
-### Deploy to Google Cloud Run
-
-**Backend**
-
-```bash
-cd backend
-
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/quorum-backend
-
-gcloud run deploy quorum-backend \
-  --image gcr.io/YOUR_PROJECT_ID/quorum-backend \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --timeout 3600 \
-  --memory 2Gi \
-  --set-env-vars GROQ_API_KEY=your_key,LOCUS_API_KEY=your_key,TELEGRAM_BOT_TOKEN=your_token,TELEGRAM_CHAT_ID=your_chat_id,CORS_ORIGINS=https://your-frontend.run.app
-```
-
-**Frontend**
-
-```bash
-cd frontend
-
-# Build the standalone Next.js image
-docker build -t gcr.io/YOUR_PROJECT_ID/quorum-frontend \
-  --build-arg NEXT_PUBLIC_API_URL=https://your-backend.run.app \
-  --build-arg NEXT_PUBLIC_WS_URL=wss://your-backend.run.app .
-
-docker push gcr.io/YOUR_PROJECT_ID/quorum-frontend
-
-gcloud run deploy quorum-frontend \
-  --image gcr.io/YOUR_PROJECT_ID/quorum-frontend \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated
-```
+3. **Access App**
+   - Frontend: `http://localhost:3000`
+   - API Docs: `http://localhost:8000/docs`
 
 ---
 
-## Environment Variables
-
-Copy `backend/.env.example` to `backend/.env`. Only `GROQ_API_KEY` is required.
-
-| Variable | Required | Default | Description |
-|:---------|:--------:|:-------:|:------------|
-| `GROQ_API_KEY` | Yes | — | Free at [console.groq.com](https://console.groq.com) |
-| `LOCUS_API_KEY` | No | — | Pre-provisioned Locus key. Leave blank for auto-registration |
-| `LOCUS_ENABLED` | No | `true` | Enable/disable Locus payment integration |
-| `ANALYSIS_PRICE_USDC` | No | `5.00` | Price per analysis in USDC |
-| `DEEP_THINK_MODEL` | No | `llama-3.3-70b-versatile` | LLM for debates and decisions |
-| `QUICK_THINK_MODEL` | No | `llama-3.1-8b-instant` | LLM for analyst processing |
-| `LLM_TIMEOUT` | No | `120` | Seconds before LLM call is cancelled |
-| `PIPELINE_TIMEOUT` | No | `600` | Max seconds for a full analysis run |
-| `MAX_POSITION_SIZE` | No | `0.25` | Max portfolio allocation per trade |
-| `AUTO_TRADE_CONFIDENCE` | No | `0.85` | Confidence threshold for auto-approval |
-| `INITIAL_CAPITAL` | No | `100000.0` | Starting portfolio value |
-| `DATA_CACHE_TTL` | No | `300` | Seconds to cache price/indicator data |
+## 📜 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## API Reference
-
-### Core Endpoints
-
-| Method | Endpoint | Description |
-|:------:|:---------|:------------|
-| POST | `/analyze` | Run the full 13-agent pipeline (free, direct) |
-| GET | `/portfolio` | Current portfolio state |
-| GET | `/portfolio/history` | Portfolio value history |
-| GET | `/trades` | Trade history |
-| GET | `/trades/performance` | Win rate, P&L, best/worst trade |
-| GET | `/price/{ticker}` | Current price and fundamentals |
-| GET | `/price/{ticker}/chart` | OHLCV candlestick data |
-| GET | `/indicators/{ticker}` | Technical indicators |
-| GET | `/search` | Ticker auto-suggest |
-| GET | `/agents/accuracy` | Per-agent accuracy stats |
-| GET | `/analysis/history` | Past analysis summaries |
-| GET | `/health` | Health check with Locus wallet status |
-
-### Locus / LocusFounder Endpoints
-
-| Method | Endpoint | Description |
-|:------:|:---------|:------------|
-| GET | `/locus/business` | Public storefront — services and pricing |
-| GET | `/locus/wallet` | Agent wallet balance (USDC) |
-| GET | `/locus/revenue` | Revenue summary across all sessions |
-| POST | `/locus/checkout` | Create a $5 USDC checkout session |
-| GET | `/locus/checkout/{id}` | Get session state |
-| GET | `/locus/checkout/{id}/status` | Poll payment status — auto-triggers analysis on confirmation |
-| POST | `/locus/mock-pay/{id}` | Simulate payment (dev/demo only) |
-
-### WebSocket
-
-| Endpoint | Events |
-|:---------|:-------|
-| `/ws/live` | `analysis_start`, `analysis_log`, `analysis_complete`, `analysis_error`, `trade_approved`, `trade_rejected` |
-
----
-
-## Paid Analysis Flow
-
-```
-1. POST /locus/checkout  { ticker: "AAPL", asset_type: "stock" }
-   → Returns { session_id, checkout_url, price_usdc: 5.00 }
-
-2. Client pays $5 USDC at checkout_url
-
-3. GET /locus/checkout/{session_id}/status  (poll every 3s)
-   → Returns { paid: true, analysis_triggered: true, analysis_id }
-
-4. Subscribe to /ws/live for real-time analysis progress
-
-5. GET /analysis/history  to retrieve the completed report
-```
-
-For development/demo, skip step 2 and call:
-```
-POST /locus/mock-pay/{session_id}
-```
-
----
-
-## Configuration
-
-| Parameter | Default | Description |
-|:----------|:-------:|:------------|
-| `MAX_DEBATE_ROUNDS` | 2 | Bull/Bear research debate rounds |
-| `MAX_RISK_DEBATE_ROUNDS` | 2 | Risk committee debate rounds |
-| `PIPELINE_TIMEOUT` | 600s | Hard timeout for the entire analysis run |
-| `AUTO_TRADE_CONFIDENCE` | 0.85 | Auto-approve trades above this threshold |
-| `MAX_POSITION_SIZE` | 0.25 | Maximum position size as fraction of portfolio |
-| `DATA_CACHE_TTL` | 300s | How long to cache price and indicator data |
-| `ANALYSIS_PRICE_USDC` | 5.00 | Price per analysis report in USDC |
-
----
-
-## Tech Stack
-
-| Layer | Technology | Purpose |
-|:------|:-----------|:--------|
-| Payment Infrastructure | Locus (USDC on Base) | Agent wallet, checkout sessions, revenue |
-| Agent Framework | LangChain + LangGraph | Agent nodes, state management, parallel DAG |
-| LLM Provider | Groq | Fast inference — llama-3.3-70b + llama-3.1-8b |
-| API Server | FastAPI + WebSockets | REST endpoints and real-time streaming |
-| Stock Data | yfinance + stockstats | OHLCV, fundamentals, technical indicators |
-| Crypto Data | CCXT (Binance) | Candles, ticker info, order books |
-| Vector Memory | ChromaDB | Semantic search over past trade situations |
-| Trade Database | SQLite (aiosqlite) | Trade history, portfolio, performance metrics |
-| Frontend | Next.js 16, TypeScript | App Router, server and client components |
-| UI Libraries | Recharts, Three.js, Framer Motion | Charts, 3D effects, animations |
-| Styling | Tailwind CSS 4 | Utility-first responsive design |
-
----
-
-## License
-
-MIT
+<p align="center">
+  Built with ❤️ for the Locus Paygentic Hackathon.
+</p>
