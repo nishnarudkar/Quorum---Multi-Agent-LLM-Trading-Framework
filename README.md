@@ -1,144 +1,180 @@
+<p align="center">
+  <img src="assets/Quorum_logo.png" width="400" alt="Quorum Logo">
+</p>
+
 <h1 align="center">Quorum</h1>
 
 <p align="center">
-  <strong>The Glass-Box AI Investment Framework — Powered by Locus</strong>
-</p>
-
-<p align="center">
-  <a href="https://quorum-frontend-74691596771.us-central1.run.app"><strong>Live Demo</strong></a> ·
-  <a href="#architecture"><strong>Architecture</strong></a> ·
-  <a href="#monetization"><strong>Monetization</strong></a> ·
-  <a href="docs/API_REFERENCE.md"><strong>API Reference</strong></a>
+  <strong>Multi-Agent LLM Trading Framework — Powered by Locus</strong>
 </p>
 
 ---
 
-## 🏛️ Overview
+## Deployment Links
 
-Quorum is an autonomous AI investment research firm that employs a swarm of **13 specialized LLM agents** to analyze global markets. Unlike traditional "black-box" AI tools, Quorum operates as a **glass-box**: every argument, dissent, and rebuttal between agents is streamed live and captured in a high-fidelity institutional report.
-
-Built for the **Locus Paygentic Hackathon**, Quorum leverages the Locus Protocol to monetize its intelligence, charging **$5 USDC (Base)** per analysis through a decentralized, agent-owned checkout system.
-
-### 🌟 Key Features
-- **Adversarial Reasoning**: Bull vs. Bear researchers engage in multi-round debates to surface hidden risks.
-- **Risk Committee**: A multi-agent committee (Aggressive, Conservative, Neutral) stress-tests every signal.
-- **Web3 Monetization**: Native USDC payments on the Base network via Locus.
-- **War Room UI**: Real-time telemetry and agent logs streamed via WebSockets.
-- **Glass-Box Reports**: Full transcripts of every agent's thought process — no hidden reasoning.
+| Service | URL |
+|:---|:---|
+| Frontend Dashboard | https://quorum-frontend-74691596771.us-central1.run.app |
+| Backend API | https://quorum-backend-74691596771.us-central1.run.app |
+| API Documentation | https://quorum-backend-74691596771.us-central1.run.app/docs |
 
 ---
 
-## 📸 Visual Showcase
+## Introduction
 
-### 1. The Command Center
-The landing page allows users to query any Stock or Crypto ticker and initiates the Locus-powered checkout.
+Quorum is an autonomous investment research framework designed for the Locus Paygentic Hackathon. The system utilizes a specialized swarm of 13 LLM agents to conduct deep-dive analysis on stocks and crypto assets. Quorum operates on a "glass-box" philosophy: rather than providing a single opaque score, it exposes the entire adversarial debate between its internal analysts, researchers, and risk officers.
+
+The framework is fully monetized via the Locus Protocol, allowing it to function as a self-sustaining autonomous business that accepts USDC payments on the Base network.
+
+---
+
+## Visual Walkthrough
+
+### Command Center
+The landing page facilitates asset discovery and payment initiation via the Locus checkout system.
 ![Landing Page](assets/landing-page.png)
 
-### 2. The War Room
-Once payment is settled, users enter the "War Room" where they watch the 13 agents debate in real-time.
+### War Room
+Real-time telemetry streams the adversarial debate as agents cross-examine market data, sentiment, and fundamentals.
 ![Agents Pipeline](assets/Agents_pipeline.jpeg)
 
-### 3. Final Institutional Report
-The result is a comprehensive report card featuring a conviction score, executive summary, and a full adversarial transcript.
+### Institutional Report
+The final output is a structured investment thesis featuring conviction scores, execution plans, and the full debate transcript.
 ![Sample Report](assets/sample-report.png)
 
 ---
 
-## 🤖 The Agent Swarm
+## System Architecture
 
-Quorum utilizes a sophisticated DAG (Directed Acyclic Graph) powered by **LangGraph** to coordinate its 13 specialists.
+Quorum's architecture is divided into three primary layers: the User Interface, the Agent Orchestration Layer, and the Monetization Layer.
 
-### The Pipeline Flow
 ```mermaid
-graph TD
-    REQ[User Request: Ticker] -->|Trigger| PIP[Pipeline Start]
-    
-    subgraph "Data Acquisition"
-        PIP --> MKT[Market Analyst: Technicals]
-        PIP --> SEN[Sentiment Analyst: Social Buzz]
-        PIP --> NWS[News Analyst: Headlines]
-        PIP --> FND[Fundamentals Analyst: Ratios]
+graph TB
+    subgraph "Frontend Layer"
+        UI[Next.js Dashboard]
+        WS[WebSocket Streamer]
+        LC[Locus Checkout]
     end
 
-    MKT & SEN & NWS & FND --> MRG[Merge Reports]
-
-    subgraph "Adversarial Debate"
-        MRG --> BULL[Bull Researcher: Long Case]
-        BULL <--> BEAR[Bear Researcher: Short Case]
-        BEAR --> JDG[Research Judge: Verdict]
+    subgraph "Intelligence Layer"
+        AG[LangGraph Orchestrator]
+        LLM[Groq Inference Engine]
+        DB[SQLite & ChromaDB]
     end
 
-    subgraph "Risk & Strategy"
-        JDG --> TRD[Trader Agent: Plan Generator]
-        TRD --> RSK[Risk Committee: Stress Test]
+    subgraph "Monetization Layer"
+        WAL[Locus Agent Wallet]
+        SET[USDC Settlement - Base]
     end
 
-    RSK --> FIN[Final Institutional Report]
+    UI -->|Request| AG
+    AG -->|Query| LLM
+    LC -->|Payment| SET
+    SET -->|Unlock| AG
+    AG -->|Live Feed| WS
+    WS --> UI
 ```
 
 ---
 
-## 💳 Monetization (Locus Integration)
+## The 13-Agent Pipeline
 
-Quorum is a fully autonomous business. It uses **Locus** to manage its own revenue and billing:
+The core logic is implemented as a Directed Acyclic Graph (DAG) using LangGraph. The pipeline follows a four-stage process:
 
-- **Agent Wallet**: The backend hosts a Locus-managed wallet on the **Base network**.
-- **USDC Settlement**: Reports are priced at **$5.00 USDC**.
-- **Autonomous Checkout**: When a user requests a report, the `LocusFounder` agent generates a unique checkout session and monitors the blockchain for payment confirmation before unlocking the analysis.
+1. **Intake & Analysis**: Four specialized analysts (Market, Sentiment, News, Fundamentals) gather and process raw data from Alpaca, Yahoo Finance, and CCXT.
+2. **Adversarial Debate**: Three Bull researchers and three Bear researchers engage in a multi-turn debate. Each agent must address the opposing arguments or concede the point.
+3. **Research Judge**: A senior agent reviews the debate transcript to issue a final verdict and investment thesis.
+4. **Risk Committee**: A multi-perspective committee (Aggressive, Conservative, Neutral, and a CRO) stress-tests the trade plan against tail risks and liquidity constraints.
+
+### Pipeline Flow
+```mermaid
+graph TD
+    REQ[Ticker Request] --> PIP[Pipeline]
+    
+    subgraph "Analysts"
+        PIP --> MKT[Market]
+        PIP --> SEN[Sentiment]
+        PIP --> NWS[News]
+        PIP --> FND[Fundamentals]
+    end
+
+    MKT & SEN & NWS & FND --> DEB[Bull vs. Bear Debate]
+    
+    subgraph "Decision"
+        DEB --> JDG[Judge]
+        JDG --> TRD[Trader]
+    end
+
+    subgraph "Risk"
+        TRD --> RSC[Risk Committee]
+        RSC --> CRO[Chief Risk Officer]
+    end
+
+    CRO --> FIN[Final Report]
+```
 
 ---
 
-## 🛠️ Tech Stack
+## Monetization and Locus Integration
 
-| Layer | Technology |
-|:------|:-----------|
-| **Infrastructure** | Google Cloud Run, Locus Protocol (Base) |
-| **Orchestration** | LangGraph, LangChain |
-| **Intelligence** | Groq (Llama 3.3-70B & 3.1-8B) |
-| **Frontend** | Next.js 15, TypeScript, Lucide Icons |
-| **Backend** | FastAPI, WebSockets, Python 3.11 |
-| **Data** | Alpaca Market API, yfinance, CCXT |
-| **Persistence** | SQLite, ChromaDB (Vector Memory) |
+Quorum integrates the Locus Protocol to handle autonomous revenue generation:
+
+- **LocusFounder Integration**: The backend utilizes the Locus SDK to manage a dedicated agent wallet on the Base network.
+- **Session Management**: Each analysis request triggers a unique Locus checkout session priced at 5.00 USDC.
+- **Blockchain Verification**: The pipeline remains locked until the Locus status endpoint confirms the transaction on-chain.
+- **Mock Flow**: For demonstration purposes, a mock settlement flow is implemented to simulate blockchain confirmation.
 
 ---
 
-## 🚀 Getting Started
+## Tech Stack
 
-### Prerequisites
-- Python 3.11+ & Node.js 18+
-- [Groq API Key](https://console.groq.com)
-- [Locus Account](https://beta.paywithlocus.com) (Code: `PAYGENTIC`)
+- **Frameworks**: Next.js 15, FastAPI, LangGraph, LangChain
+- **Intelligence**: Groq (Llama 3.3-70B, 3.1-8B)
+- **Infrastructure**: Google Cloud Run, Locus Protocol
+- **Data Providers**: Alpaca Market API, Yahoo Finance, CCXT
+- **Database**: SQLite (Relational), ChromaDB (Vector)
+- **Styling**: Vanilla CSS with custom design tokens
 
-### Local Setup
+---
 
-1. **Clone & Install Backend**
+## Environment Configuration
+
+| Variable | Description |
+|:---|:---|
+| GROQ_API_KEYS | Semicolon-separated list of Groq API keys for rotation |
+| ALPACA_API_KEY | Alpaca Market Data API Key |
+| ALPACA_SECRET_KEY | Alpaca Market Data Secret Key |
+| LOCUS_API_KEY | Locus Protocol API Key |
+| LLM_CONCURRENCY | Number of parallel agent calls (Default: 2) |
+
+---
+
+## Getting Started
+
+### Local Development
+
+1. **Backend Setup**
    ```bash
    cd backend
    python -m venv venv
-   source venv/bin/activate  # venv\Scripts\activate on Windows
+   source venv/bin/activate
    pip install -r requirements.txt
-   cp .env.example .env  # Add your GROQ_API_KEY
    python -m uvicorn api.main:app --reload
    ```
 
-2. **Install Frontend**
+2. **Frontend Setup**
    ```bash
    cd frontend
    npm install
    npm run dev
    ```
 
-3. **Access App**
-   - Frontend: `http://localhost:3000`
-   - API Docs: `http://localhost:8000/docs`
+3. **Verification**
+   - Access the dashboard at `http://localhost:3000`
+   - Access API documentation at `http://localhost:8000/docs`
 
 ---
 
-## 📜 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## License
 
----
-
-<p align="center">
-  Built with ❤️ for the Locus Paygentic Hackathon.
-</p>
+This project is licensed under the MIT License.
