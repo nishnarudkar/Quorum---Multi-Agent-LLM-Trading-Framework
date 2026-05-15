@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="assets/Quorum_logo.png" width="400" alt="Quorum Logo">
-</p>
-
 <h1 align="center">Quorum</h1>
 
 <p align="center">

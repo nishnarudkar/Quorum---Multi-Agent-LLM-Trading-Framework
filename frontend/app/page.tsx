@@ -68,8 +68,8 @@ export default function LandingPage() {
                     border-bottom: 1px solid var(--line);
                 }
                 .nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; max-width: 1100px; margin: 0 auto; }
-                .logo { display: flex; align-items: center; gap: 10px; }
-                .logo-img { height: 32px; width: auto; object-fit: contain; }
+                .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk'; font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
+                .logo-dot { width: 10px; height: 10px; background: var(--accent); box-shadow: 0 0 14px var(--accent); display: inline-block; }
                 .nav-links { display: flex; gap: 28px; font-size: .85rem; color: var(--muted); }
                 .nav-links a:hover { color: var(--text); }
                 @media(max-width: 720px) { .nav-links { display: none; } }
@@ -228,9 +228,7 @@ export default function LandingPage() {
 
             <header className="nav">
                 <div className="nav-inner">
-                    <div className="logo">
-                        <img src="/assets/Quorum_logo.png" alt="Quorum" className="logo-img" />
-                    </div>
+                    <div className="logo"><span className="logo-dot"></span>QUORUM</div>
                     <nav className="nav-links">
                         <a href="#how">Pipeline</a>
                         <a href="#sample">Sample report</a>
@@ -447,9 +445,7 @@ export default function LandingPage() {
 
             <footer>
                 <div className="wrap foot-inner">
-                    <div className="logo">
-                        <img src="/assets/Quorum_logo.png" alt="Quorum" className="logo-img" />
-                    </div>
+                    <div className="logo"><span className="logo-dot"></span>QUORUM</div>
                     <div>The glass-box research firm · © <span id="y">2025</span></div>
                     <div>Not financial advice. Markets are risky. Read the transcript.</div>
                 </div>
