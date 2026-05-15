@@ -29,7 +29,8 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_API_KEYS_RAW = os.getenv("GROQ_API_KEYS", "")
 
 # Parse multiple keys if available
-GROQ_API_KEYS = [k.strip() for k in GROQ_API_KEYS_RAW.split(",") if k.strip()]
+import re
+GROQ_API_KEYS = [k.strip() for k in re.split(r'[,;]', GROQ_API_KEYS_RAW) if k.strip()]
 if GROQ_API_KEY and GROQ_API_KEY not in GROQ_API_KEYS:
     GROQ_API_KEYS.insert(0, GROQ_API_KEY)
 
