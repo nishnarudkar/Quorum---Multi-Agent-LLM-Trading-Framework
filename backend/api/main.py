@@ -718,10 +718,25 @@ async def _run_paid_analysis(
             },
         })
 
+        async def log_callback(agent: str, stage: str, message: str, details: str = ""):
+            await broadcast({
+                "type": "analysis_log",
+                "analysis_id": analysis_id,
+                "session_id": session_id,
+                "data": {
+                    "agent": agent,
+                    "stage": stage,
+                    "message": message,
+                    "details": (details or "")[:500],
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+            })
+
         result = await pipeline.analyze(
             ticker=ticker,
             asset_type=asset_type,
             trade_date=datetime.utcnow().strftime("%Y-%m-%d"),
+            log_callback=log_callback,
             analysis_id=analysis_id,
         )
 
