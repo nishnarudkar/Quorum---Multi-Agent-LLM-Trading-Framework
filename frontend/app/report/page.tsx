@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2, CheckCircle2, AlertCircle, Terminal, ShieldCheck, Activity, Cpu, Brain, Zap, TrendingUp, TrendingDown, Clock, Hash } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Terminal, ShieldCheck, Activity, Cpu, Brain, Zap, TrendingUp, TrendingDown, Clock, Hash, Download } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const PriceTicker = dynamic(() => import('@/components/PriceTicker'), { ssr: false });
@@ -30,6 +30,10 @@ function ReportContent() {
     
     const wsRef = useRef<WebSocket | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
+
+    const handleDownloadPDF = () => {
+        window.print();
+    };
 
     // Calculate progress based on unique agents mentioned in logs
     useEffect(() => {
@@ -241,13 +245,25 @@ function ReportContent() {
     // Completed State
     return (
         <div className="war-room report-view">
-            <div className="top-nav">
+            <div className="top-nav no-print">
                 <div className="brand"><span className="dot"></span>QUORUM / FINAL_REPORT</div>
-                <div className="verdict-tag">
-                    VERDICT: <span className={result?.investment_debate?.judge_verdict?.toLowerCase().includes('bull') ? 'bull' : 'bear'}>
-                        {result?.investment_debate?.judge_verdict?.toUpperCase() || 'NEUTRAL'}
-                    </span>
+                <div className="nav-right">
+                    <button className="btn-icon-text download-btn" onClick={handleDownloadPDF}>
+                        <Download size={16} />
+                        <span>DOWNLOAD_PDF</span>
+                    </button>
+                    <div className="verdict-tag">
+                        VERDICT: <span className={result?.investment_debate?.judge_verdict?.toLowerCase().includes('bull') ? 'bull' : 'bear'}>
+                            {result?.investment_debate?.judge_verdict?.toUpperCase() || 'NEUTRAL'}
+                        </span>
+                    </div>
                 </div>
+            </div>
+
+            {/* Print-only Header */}
+            <div className="print-only-header">
+                <div className="brand"><span className="dot"></span>QUORUM / INVESTMENT_REPORT</div>
+                <div className="print-date">Generated on: {new Date().toLocaleDateString()} · Session: {sessionId?.slice(0, 8)}</div>
             </div>
 
             <div className="report-main">
@@ -359,6 +375,14 @@ const styles = `
         display: flex; justify-content: space-between; align-items: center;
         padding: 20px 40px; border-bottom: 1px solid #262b38; background: #0b0d12;
     }
+    .nav-right { display: flex; align-items: center; gap: 24px; }
+    .download-btn {
+        display: flex; align-items: center; gap: 8px;
+        background: #6c63ff15; border: 1px solid #6c63ff40; color: #6c63ff;
+        padding: 8px 16px; font-size: 0.7rem; font-weight: 800; cursor: pointer;
+        transition: all 0.2s; border-radius: 4px;
+    }
+    .download-btn:hover { background: #6c63ff25; transform: translateY(-1px); }
     .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 0.9rem; letter-spacing: 0.05em; }
     .brand .dot { width: 8px; height: 8px; background: #6c63ff; box-shadow: 0 0 10px #6c63ff; }
     .session-info { display: flex; gap: 24px; font-size: 0.7rem; color: #8a909c; }
@@ -466,6 +490,32 @@ const styles = `
         .main-layout { grid-template-columns: 1fr; height: auto; }
         .report-grid { grid-template-columns: 1fr; }
         .stats-pane { border-top: 1px solid #262b38; }
+    }
+
+    /* Print Styles */
+    .print-only-header { display: none; }
+    @media print {
+        @page { size: A4; margin: 20mm; }
+        .no-print { display: none !important; }
+        .print-only-header { 
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px solid #262b38;
+        }
+        .war-room { background: white !important; color: black !important; padding: 0 !important; }
+        .report-view .report-main { padding: 0 !important; max-width: 100% !important; }
+        .t-main { color: black !important; }
+        .t-sub { color: #555 !important; }
+        .s-val { color: #6c63ff !important; }
+        .card { background: #f8f9fa !important; border: 1px solid #dee2e6 !important; color: black !important; break-inside: avoid; }
+        .card h3 { color: #555 !important; }
+        .thesis p, .case p { color: #222 !important; }
+        .sig .l, .c-head { color: #555 !important; }
+        .sig .v { color: black !important; }
+        .bull { color: #059669 !important; }
+        .bear { color: #dc2626 !important; }
+        .approved-badge { background: #ecfdf5 !important; border-color: #10b981 !important; color: #059669 !important; }
+        .report-grid { gap: 20px !important; }
+        PriceTicker { display: none !important; }
     }
 `;
 
