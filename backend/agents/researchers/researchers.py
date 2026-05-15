@@ -76,19 +76,19 @@ Respond in valid JSON:
 
 
 def _format_reports(state: dict) -> str:
-    """Format analyst reports for the researchers."""
+    """Format condensed analyst reports for the researchers to save tokens."""
     parts = []
     for key in ["market_report", "sentiment_report", "news_report", "fundamentals_report"]:
         report = state.get(key)
         if report:
             r = report if isinstance(report, dict) else report.model_dump()
+            # Only include high-signal data: Summary, Sentiment, Confidence, Key Findings
+            # Omit 'Reasoning' as it often contains large blocks of text
             parts.append(f"""
 --- {r.get('analyst_type', key).upper()} ANALYST REPORT ---
 Summary: {r.get('summary', 'N/A')}
-Sentiment: {r.get('sentiment', 'N/A')}
-Confidence: {r.get('confidence', 'N/A')}
-Key Findings: {', '.join(r.get('key_findings', []))}
-Reasoning: {r.get('reasoning', 'N/A')}
+Sentiment: {r.get('sentiment', 'N/A')} | Conf: {r.get('confidence', 'N/A')}
+Findings: {', '.join(r.get('key_findings', []))}
 """)
     return "\n".join(parts) if parts else "No analyst reports available."
 
