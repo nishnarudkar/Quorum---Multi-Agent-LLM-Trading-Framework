@@ -170,19 +170,19 @@ function ReportContent() {
             <div className="report-grid">
                 <div className="verdict-card">
                     <div className="card-label">JUDGE VERDICT</div>
-                    <div className={`verdict-value ${result?.judge_report?.verdict?.includes('LONG') ? 'bull' : 'bear'}`}>
-                        {result?.judge_report?.verdict}
+                    <div className={`verdict-value ${result?.investment_debate?.judge_verdict?.toLowerCase().includes('bull') ? 'bull' : 'bear'}`}>
+                        {result?.investment_debate?.judge_verdict?.toUpperCase() || 'NEUTRAL'}
                     </div>
                     <div className="confidence-section">
                         <div className="label-row">
                             <span>CONVICTION SCORE</span>
-                            <span>{result?.judge_report?.confidence}/10</span>
+                            <span>{((result?.investment_debate?.judge_confidence || 0) * 10).toFixed(1)}/10</span>
                         </div>
                         <div className="bar-bg">
-                            <div className="bar-fill" style={{ width: `${(result?.judge_report?.confidence || 0) * 10}%` }}></div>
+                            <div className="bar-fill" style={{ width: `${(result?.investment_debate?.judge_confidence || 0) * 100}%` }}></div>
                         </div>
                     </div>
-                    {result?.risk_report?.approved && (
+                    {result?.trade_approved && (
                         <div className="risk-badge">
                             <ShieldCheck size={14} /> RISK COMMITTEE APPROVED
                         </div>
@@ -191,7 +191,7 @@ function ReportContent() {
 
                 <div className="thesis-card">
                     <div className="card-label">INVESTMENT THESIS</div>
-                    <p>{result?.judge_report?.thesis}</p>
+                    <p>{result?.investment_debate?.investment_thesis}</p>
                 </div>
 
                 <div className="trade-card">
@@ -199,19 +199,19 @@ function ReportContent() {
                     <div className="signal-grid">
                         <div className="signal-item">
                             <span className="label">ENTRY</span>
-                            <span className="val">${result?.trader_report?.entry_zone}</span>
+                            <span className="val">${result?.trade_signal?.entry_price || '0.00'}</span>
                         </div>
                         <div className="signal-item">
                             <span className="label">TARGET</span>
-                            <span className="val bull">${result?.trader_report?.target_price}</span>
+                            <span className="val bull">${result?.trade_signal?.target_price || '0.00'}</span>
                         </div>
                         <div className="signal-item">
                             <span className="label">STOP</span>
-                            <span className="val bear">${result?.trader_report?.stop_loss}</span>
+                            <span className="val bear">${result?.trade_signal?.stop_loss || '0.00'}</span>
                         </div>
                         <div className="signal-item">
                             <span className="label">SIZE</span>
-                            <span className="val">{(result?.trader_report?.position_size * 100).toFixed(1)}%</span>
+                            <span className="val">{((result?.trade_signal?.position_size_pct || 0) * 100).toFixed(1)}%</span>
                         </div>
                     </div>
                 </div>
@@ -221,11 +221,11 @@ function ReportContent() {
                     <div className="debate-cols">
                         <div className="bull-col">
                             <h4>BULL CASE</h4>
-                            <p>{result?.bull_researcher?.thesis || 'Bull thesis pending...'}</p>
+                            <p>{result?.investment_debate?.bull_arguments?.[result.investment_debate.bull_arguments.length - 1]?.content || 'Bull thesis pending...'}</p>
                         </div>
                         <div className="bear-col">
                             <h4>BEAR CASE</h4>
-                            <p>{result?.bear_researcher?.thesis || 'Bear thesis pending...'}</p>
+                            <p>{result?.investment_debate?.bear_arguments?.[result.investment_debate.bear_arguments.length - 1]?.content || 'Bear thesis pending...'}</p>
                         </div>
                     </div>
                 </div>
