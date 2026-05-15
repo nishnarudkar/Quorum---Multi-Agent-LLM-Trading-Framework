@@ -97,6 +97,9 @@ class TradeDB:
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_logs_created ON analysis_logs(created_at DESC)"
             )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_logs_session ON analysis_logs(session_id)"
+            )
 
             # ─── Migrations ───────────────────────────────────
             # Safely add columns that may be missing in databases created before
@@ -106,6 +109,7 @@ class TradeDB:
                 "ALTER TABLE analysis_logs ADD COLUMN action TEXT",
                 "ALTER TABLE analysis_logs ADD COLUMN confidence REAL",
                 "ALTER TABLE analysis_logs ADD COLUMN trade_approved INTEGER DEFAULT 0",
+                "ALTER TABLE analysis_logs ADD COLUMN session_id TEXT",
             ]
             for sql in _migrations:
                 try:
@@ -242,6 +246,7 @@ class TradeDB:
         asset_type: str,
         trade_date: str,
         state_dict: dict,
+        session_id: Optional[str] = None,
     ):
         """Save a full analysis pipeline state."""
         signal = state_dict.get("trade_signal") or {}
@@ -258,14 +263,15 @@ class TradeDB:
             await db.execute(
                 """INSERT INTO analysis_logs
                    (ticker, asset_type, trade_date, action, confidence,
-                    trade_approved, full_state_json, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    trade_approved, full_state_json, session_id, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     ticker.upper(), asset_type, trade_date,
                     str(action) if action else None,
                     float(confidence) if confidence is not None else None,
                     trade_approved,
                     json.dumps(state_dict, default=str),
+                    session_id,
                     datetime.utcnow().isoformat(),
                 ),
             )
@@ -294,6 +300,22 @@ class TradeDB:
                 )
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
+
+    async def get_analysis_by_session(self, session_id: str) -> Optional[dict]:
+        """Get the full analysis state for a given session ID."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            cursor = await db.execute(
+                "SELECT full_state_json FROM analysis_logs WHERE session_id = ? LIMIT 1",
+                (session_id,),
+            )
+            row = await cursor.fetchone()
+            if row:
+                try:
+                    return json.loads(row["full_state_json"])
+                except Exception:
+                    return None
+            return None
 
     # ─── Agent Accuracy ───────────────────────────────────────
 

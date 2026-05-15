@@ -677,7 +677,7 @@ async def poll_payment_status(session_id: str):
         if session and pipeline:
             ticker = session["ticker"]
             asset_type = session["asset_type"]
-            analysis_id = str(uuid.uuid4())
+            analysis_id = session_id
 
             logger.info(
                 f"Payment confirmed for {ticker} — triggering analysis "
@@ -695,6 +695,12 @@ async def poll_payment_status(session_id: str):
             )
             result["analysis_triggered"] = True
             result["analysis_id"] = analysis_id
+
+    # If already fulfilled, try to fetch and attach the result
+    if result.get("status") == "fulfilled" and trade_db:
+        analysis_result = await trade_db.get_analysis_by_session(session_id)
+        if analysis_result:
+            result["analysis_result"] = analysis_result
 
     return result
 
@@ -746,7 +752,8 @@ async def _run_paid_analysis(
             await trade_db.save_analysis_log(
                 ticker, asset_type,
                 datetime.utcnow().strftime("%Y-%m-%d"),
-                {**serialized, "session_id": session_id},
+                serialized,
+                session_id=session_id,
             )
 
         mark_fulfilled(session_id, analysis_id)

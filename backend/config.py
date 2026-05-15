@@ -40,7 +40,7 @@ QUICK_THINK_MODEL = os.getenv("QUICK_THINK_MODEL", "llama-3.1-8b-instant")    # 
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.7"))
 LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "3"))
 LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "120"))          # Seconds before LLM call times out
-LLM_CONCURRENCY = int(os.getenv("LLM_CONCURRENCY", "3"))    # Max parallel LLM calls
+LLM_CONCURRENCY = int(os.getenv("LLM_CONCURRENCY", "2"))    # Max parallel LLM calls
 
 # ─── Agent Pipeline ───────────────────────────────────────────
 MAX_DEBATE_ROUNDS = int(os.getenv("MAX_DEBATE_ROUNDS", "2"))

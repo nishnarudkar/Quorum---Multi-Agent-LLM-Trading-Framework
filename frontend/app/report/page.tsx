@@ -42,6 +42,13 @@ function ReportContent() {
                 if (!res.ok) throw new Error('Failed to check status');
                 const data = await res.json();
 
+                if (data.analysis_result) {
+                    setResult(data.analysis_result);
+                    setStatus('completed');
+                    clearInterval(pollInterval);
+                    return;
+                }
+
                 if (data.paid) {
                     setStatus('live');
                     clearInterval(pollInterval);

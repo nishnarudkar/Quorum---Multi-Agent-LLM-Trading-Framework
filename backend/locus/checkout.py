@@ -173,12 +173,13 @@ async def confirm_payment(session_id: str) -> dict:
         session.status = "expired"
         return {"paid": False, "status": "expired"}
 
-    if session.status == "paid":
-        return {"paid": True, "status": "paid", **session.to_dict()}
+    if session.status in ("paid", "fulfilled"):
+        return {"paid": True, "status": session.status, **session.to_dict()}
 
     # Mock sessions are auto-confirmed for development
     if session.locus_session_id and session.locus_session_id.startswith(("mock_", "fallback_")):
-        session.status = "paid"
+        if session.status == "pending":
+            session.status = "paid"
         session.paid_at = datetime.utcnow()
         logger.info(f"Mock session {session_id[:8]} auto-confirmed")
         return {"paid": True, "status": "paid", **session.to_dict()}
