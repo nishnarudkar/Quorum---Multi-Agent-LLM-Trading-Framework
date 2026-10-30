@@ -10,6 +10,7 @@ import logging
 from utils.json_parser import safe_parse_json
 from config import MAX_POSITION_SIZE, MIN_POSITION_SIZE
 from utils.serialization import sanitize_for_serialization
+from utils.event_bus import emit_agent_log
 
 logger = logging.getLogger("quorum.risk")
 
@@ -128,6 +129,11 @@ def create_aggressive_debater(llm):
         debate.round_count = len(debate.aggressive_arguments)
 
         logger.info(f"Aggressive done — risk_rating: {result.get('risk_rating', 'N/A')}")
+        await emit_agent_log(
+            state.get("analysis_id"), "Aggressive Risk Analyst", "completed",
+            f"Risk rating: {result.get('risk_rating', 'N/A')}",
+            msg.content,
+        )
         return {"risk_debate": sanitize_for_serialization(debate.model_dump())}
 
     return node
@@ -157,6 +163,11 @@ def create_conservative_debater(llm):
         debate.conservative_arguments.append(msg)
 
         logger.info(f"Conservative done — risk_rating: {result.get('risk_rating', 'N/A')}")
+        await emit_agent_log(
+            state.get("analysis_id"), "Conservative Risk Analyst", "completed",
+            f"Risk rating: {result.get('risk_rating', 'N/A')}",
+            msg.content,
+        )
         return {"risk_debate": sanitize_for_serialization(debate.model_dump())}
 
     return node
@@ -188,6 +199,11 @@ def create_neutral_debater(llm):
         debate.neutral_arguments.append(msg)
 
         logger.info(f"Neutral done — risk_rating: {result.get('risk_rating', 'N/A')}")
+        await emit_agent_log(
+            state.get("analysis_id"), "Neutral Risk Analyst", "completed",
+            f"Risk rating: {result.get('risk_rating', 'N/A')}",
+            msg.content,
+        )
         return {"risk_debate": sanitize_for_serialization(debate.model_dump())}
 
     return node
@@ -259,6 +275,11 @@ def create_risk_judge(llm, memory=None):
         logger.info(
             f"Risk Judge verdict: {'APPROVED' if approved else 'REJECTED'} "
             f"— position: {final_position_pct:.1%}"
+        )
+        await emit_agent_log(
+            state.get("analysis_id"), "Risk Judge", "completed",
+            f"{'APPROVED' if approved else 'REJECTED'} — final position {final_position_pct:.1%}",
+            final_decision,
         )
 
         return {

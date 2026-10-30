@@ -26,9 +26,6 @@ aiosqlite==0.21.0
 # ─── Alpaca Trading ───────────────────────────────────────────
 alpaca-py==0.38.0
 
-# ─── Locus Integration ────────────────────────────────────────
-# httpx already listed above — used for Locus API calls
-
 # ─── Alerts ───────────────────────────────────────────────────
 python-telegram-bot==21.11.1
 aiohttp==3.10.11

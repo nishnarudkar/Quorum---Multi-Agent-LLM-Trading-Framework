@@ -3,6 +3,7 @@ Quorum — Fundamentals Analyst Agent
 Evaluates company financials, balance sheet, and valuation metrics.
 """
 
+import asyncio
 from langchain_core.messages import HumanMessage, SystemMessage
 from models.schemas import AnalystReport
 from data.stock_provider import StockProvider
@@ -77,10 +78,10 @@ Note: Traditional financial statements are not available for crypto assets.
 Provide your analysis in the required JSON format.
 """
         else:
-            fundamentals = stock_provider.get_fundamentals(ticker)
-            balance_sheet = stock_provider.get_balance_sheet(ticker)
-            cashflow = stock_provider.get_cashflow(ticker)
-            income_stmt = stock_provider.get_income_statement(ticker)
+            fundamentals = await asyncio.to_thread(stock_provider.get_fundamentals, ticker)
+            balance_sheet = await asyncio.to_thread(stock_provider.get_balance_sheet, ticker)
+            cashflow = await asyncio.to_thread(stock_provider.get_cashflow, ticker)
+            income_stmt = await asyncio.to_thread(stock_provider.get_income_statement, ticker)
 
             data_prompt = f"""
 Analysis Run: {run_id} | Timestamp: {now}
@@ -132,7 +133,7 @@ Provide your analysis in the required JSON format.
 
         raw_data = {}
         if asset_type != "crypto":
-            raw_data = stock_provider.get_fundamentals(ticker)
+            raw_data = await asyncio.to_thread(stock_provider.get_fundamentals, ticker)
 
         report = AnalystReport(
             analyst_type="fundamentals",

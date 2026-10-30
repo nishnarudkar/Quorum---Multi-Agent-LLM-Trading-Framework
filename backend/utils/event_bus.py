@@ -5,6 +5,7 @@ Async pub/sub for broadcasting pipeline events to WebSocket subscribers.
 
 import asyncio
 import logging
+from datetime import datetime, timezone
 from typing import Callable, Awaitable
 
 logger = logging.getLogger("quorum.eventbus")
@@ -51,3 +52,18 @@ class EventBus:
 
 
 event_bus = EventBus()
+
+
+async def emit_agent_log(
+    analysis_id: str | None, agent: str, stage: str, message: str, details: str = ""
+):
+    """Emit an agent progress event for the live debate feed (no-op without an analysis ID)."""
+    if not analysis_id:
+        return
+    await event_bus.emit("analysis_log", analysis_id, {
+        "agent": agent,
+        "stage": stage,
+        "message": message,
+        "details": (details or "")[:500],
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })

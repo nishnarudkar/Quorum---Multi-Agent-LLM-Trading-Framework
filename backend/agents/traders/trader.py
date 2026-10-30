@@ -10,6 +10,7 @@ from models.schemas import TradeSignal, TradeAction, AssetType
 from utils.json_parser import safe_parse_json
 from config import MAX_POSITION_SIZE, MIN_POSITION_SIZE
 from utils.serialization import sanitize_for_serialization
+from utils.event_bus import emit_agent_log
 
 logger = logging.getLogger("quorum.trader")
 
@@ -184,6 +185,12 @@ Create your trade plan. Use the current price as your entry reference.
         logger.info(
             f"Trader done — {trade_signal.action.value} "
             f"(conf: {trade_signal.confidence:.0%}, size: {trade_signal.position_size_pct:.1%})"
+        )
+        await emit_agent_log(
+            state.get("analysis_id"), "Trader", "completed",
+            f"Proposed {trade_signal.action.value.upper()} — size {trade_signal.position_size_pct:.1%}, "
+            f"confidence {trade_signal.confidence:.0%}",
+            trade_signal.reasoning,
         )
         return {"trade_signal": sanitize_for_serialization(trade_signal.model_dump())}
 

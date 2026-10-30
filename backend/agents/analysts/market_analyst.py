@@ -3,6 +3,7 @@ Quorum — Market/Technical Analyst Agent
 Analyzes price action, technical indicators, and chart patterns.
 """
 
+import asyncio
 from langchain_core.messages import HumanMessage, SystemMessage
 from models.schemas import AnalystReport, Sentiment, AssetType
 from data.stock_provider import StockProvider
@@ -62,12 +63,12 @@ def create_market_analyst(llm):
 
         # Fetch technical data
         if asset_type == "crypto":
-            indicators = crypto_provider.get_technical_indicators(ticker)
-            price_data = crypto_provider.get_price_data(ticker, limit=30)
+            indicators = await asyncio.to_thread(crypto_provider.get_technical_indicators, ticker)
+            price_data = await asyncio.to_thread(crypto_provider.get_price_data, ticker, limit=30)
             price_summary = f"Last 30 days data available. Latest close: {indicators.get('current_price', 'N/A')}"
         else:
-            indicators = stock_provider.get_technical_indicators(ticker)
-            price_data = stock_provider.get_price_data(ticker, period="3mo")
+            indicators = await asyncio.to_thread(stock_provider.get_technical_indicators, ticker)
+            price_data = await asyncio.to_thread(stock_provider.get_price_data, ticker, period="3mo")
             price_summary = f"3-month data available. Latest close: {indicators.get('current_price', 'N/A')}"
 
         import uuid

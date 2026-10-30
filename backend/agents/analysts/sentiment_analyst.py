@@ -3,6 +3,7 @@ Quorum — Sentiment Analyst Agent
 Analyzes social media sentiment, Reddit, and public mood.
 """
 
+import asyncio
 from langchain_core.messages import HumanMessage, SystemMessage
 from models.schemas import AnalystReport
 from data.stock_provider import StockProvider
@@ -54,13 +55,13 @@ def create_sentiment_analyst(llm):
             })
 
         # Fetch news as proxy for sentiment
-        news = stock_provider.get_news(ticker)
+        news = await asyncio.to_thread(stock_provider.get_news, ticker)
         news_text = "\n".join(
             [f"- {n['title']} ({n['publisher']})" for n in news]
         ) if news else "No recent news available."
 
         # Get basic price context
-        price = stock_provider.get_current_price(ticker)
+        price = await asyncio.to_thread(stock_provider.get_current_price, ticker)
 
         import uuid
         run_id = str(uuid.uuid4())[:8]

@@ -9,7 +9,7 @@ import math
 import traceback
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Any
 from contextlib import asynccontextmanager
 
@@ -18,7 +18,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Quer
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 
-from config import CORS_ORIGINS, API_HOST, API_PORT, INITIAL_CAPITAL
+from config import (
+    CORS_ORIGINS, API_HOST, API_PORT, INITIAL_CAPITAL, PRICE_POLL_INTERVAL, SCANNER_ENABLED,
+)
 from graph.pipeline import TradingPipeline
 from memory.trade_db import TradeDB
 from data.stock_provider import StockProvider
@@ -26,15 +28,6 @@ from data.crypto_provider import CryptoProvider
 from data.alpaca_provider import AlpacaProvider
 from data.ticker_search import search_tickers
 from utils.event_bus import event_bus
-from locus.founder_agent import founder_agent
-from locus.checkout import (
-    create_checkout_session,
-    confirm_payment,
-    get_session,
-    mark_fulfilled,
-    mock_confirm,
-    get_revenue_summary,
-)
 from utils.alerts import send_analysis_alert, send_error_alert, send_approval_required_alert
 from realtime.price_stream import PriceStream
 from realtime.watchlist_scanner import WatchlistScanner
@@ -97,27 +90,6 @@ class TradeApprovalRequest(BaseModel):
         return v.lower()
 
 
-class CheckoutRequest(BaseModel):
-    ticker: str
-    asset_type: str = "stock"
-    selected_analysts: Optional[list[str]] = None
-
-    @field_validator("ticker")
-    @classmethod
-    def validate_ticker(cls, v: str) -> str:
-        v = v.strip().upper()
-        if not v or len(v) > 20:
-            raise ValueError("Ticker must be 1–20 characters")
-        return v
-
-    @field_validator("asset_type")
-    @classmethod
-    def validate_asset_type(cls, v: str) -> str:
-        if v not in VALID_ASSET_TYPES:
-            raise ValueError(f"asset_type must be one of {VALID_ASSET_TYPES}")
-        return v
-
-
 # ─── Global State ─────────────────────────────────────────────
 
 pipeline: Optional[TradingPipeline] = None
@@ -126,6 +98,9 @@ stock_provider = StockProvider()
 crypto_provider = CryptoProvider()
 alpaca_provider = AlpacaProvider()
 active_connections: list[WebSocket] = []
+# Background analysis jobs, keyed by analysis_id → {status, ticker, asset_type, result, error}
+analysis_jobs: dict[str, dict] = {}
+background_tasks: set[asyncio.Task] = set()
 price_stream: Optional[PriceStream] = None
 watchlist_scanner: Optional[WatchlistScanner] = None
 
@@ -146,18 +121,16 @@ async def lifespan(app: FastAPI):
     pipeline = TradingPipeline()
     await pipeline.initialize()
 
-    # Initialize LocusFounder agent (wallet + credentials)
-    await founder_agent.initialize()
-
     event_bus.subscribe(broadcast_subscriber)
 
     # Start real-time price stream
     price_stream = PriceStream(broadcast)
     await price_stream.start()
 
-    # Start watchlist scanner (auto-analysis on schedule)
+    # Watchlist scanner: always available for manual scans, scheduled only when enabled
     watchlist_scanner = WatchlistScanner(pipeline, broadcast, trade_db)
-    await watchlist_scanner.start()
+    if SCANNER_ENABLED:
+        await watchlist_scanner.start()
 
     logger.info("Quorum API started")
 
@@ -169,7 +142,6 @@ async def lifespan(app: FastAPI):
     if watchlist_scanner:
         await watchlist_scanner.stop()
     event_bus.unsubscribe(broadcast_subscriber)
-    await founder_agent.close()
     logger.info("Quorum API shutting down")
 
 
@@ -239,7 +211,7 @@ async def root():
         "name": "Quorum API",
         "version": "1.0.0",
         "status": "running",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -249,14 +221,12 @@ async def health_check():
         "status": "healthy",
         "pipeline_ready": pipeline is not None,
         "db_ready": trade_db is not None,
-        "locus_ready": founder_agent.is_ready,
-        "locus_wallet": founder_agent.wallet_address,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
 @app.get("/search")
-async def search_ticker(
+def search_ticker(
     q: str = Query(min_length=1, max_length=20),
     asset_type: str = Query(default="all"),
     limit: int = Query(default=8, le=20),
@@ -267,13 +237,9 @@ async def search_ticker(
 
 # ─── Analysis ─────────────────────────────────────────────────
 
-@app.post("/analyze")
-async def analyze_ticker(request: AnalyzeRequest):
-    """Run the full 13-agent pipeline for a ticker."""
-    if not pipeline:
-        raise HTTPException(status_code=503, detail="Pipeline not initialized")
-
-    analysis_id = str(uuid.uuid4())
+async def _run_analysis(analysis_id: str, request: AnalyzeRequest) -> dict:
+    """Run the pipeline for one request, stream progress over WebSocket, and persist the result."""
+    trade_date = request.trade_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     logger.info(f"Analysis started — {request.ticker} ({request.asset_type}) [{analysis_id[:8]}]")
 
@@ -283,43 +249,37 @@ async def analyze_ticker(request: AnalyzeRequest):
         "data": {"ticker": request.ticker, "asset_type": request.asset_type},
     })
 
+    async def log_callback(agent: str, stage: str, message: str, details: str = ""):
+        await broadcast({
+            "type": "analysis_log",
+            "analysis_id": analysis_id,
+            "data": {
+                "agent": agent,
+                "stage": stage,
+                "message": message,
+                "details": (details or "")[:500],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        })
+
     try:
-        import time
-        start_time = time.time()
-
-        async def log_callback(agent: str, stage: str, message: str, details: str = ""):
-            await broadcast({
-                "type": "analysis_log",
-                "analysis_id": analysis_id,
-                "data": {
-                    "agent": agent,
-                    "stage": stage,
-                    "message": message,
-                    "details": (details or "")[:500],
-                    "timestamp": datetime.utcnow().isoformat(),
-                },
-            })
-
         result = await pipeline.analyze(
             ticker=request.ticker,
             asset_type=request.asset_type,
-            trade_date=request.trade_date or datetime.utcnow().strftime("%Y-%m-%d"),
+            trade_date=trade_date,
             log_callback=log_callback,
             selected_analysts=request.selected_analysts,
             analysis_id=analysis_id,
         )
 
-        elapsed = time.time() - start_time
         trade_signal = result.get("trade_signal")
-        approved = result.get("trade_approved", False)
-
         if trade_signal:
             await _record_and_execute_trade(
                 ticker=request.ticker,
                 asset_type=request.asset_type,
                 trade_signal=trade_signal,
-                approved=approved,
-                trade_date=request.trade_date or datetime.utcnow().strftime("%Y-%m-%d")
+                approved=result.get("trade_approved", False),
+                trade_date=trade_date,
             )
 
         serialized = _serialize_state(result)
@@ -327,44 +287,109 @@ async def analyze_ticker(request: AnalyzeRequest):
             await trade_db.save_analysis_log(
                 request.ticker,
                 request.asset_type,
-                request.trade_date or datetime.utcnow().strftime("%Y-%m-%d"),
+                trade_date,
                 serialized,
+                analysis_id=analysis_id,
             )
 
-        await broadcast({"type": "analysis_complete", "data": serialized})
-
-        # Send alert to Telegram / Discord
+        await broadcast({"type": "analysis_complete", "analysis_id": analysis_id, "data": serialized})
         await send_analysis_alert(serialized)
-
         return serialized
 
-    except TimeoutError as e:
-        msg = str(e)
-        logger.error(f"Pipeline timeout for {request.ticker}: {msg}")
-        await broadcast({"type": "analysis_error", "data": {"error": msg}})
-        raise HTTPException(status_code=504, detail=msg)
-
     except Exception as e:
-        error_str = str(e).lower()
-        is_rate_limit = any(kw in error_str for kw in (
-            "rate_limit", "rate limit", "429", "too many requests", "resource_exhausted"
-        ))
+        status_code, msg = classify_pipeline_error(e)
+        if status_code == 500:
+            traceback.print_exc()
+            await send_error_alert(request.ticker, msg)
+        logger.error(f"Analysis failed for {request.ticker} [{analysis_id[:8]}]: {e}")
+        error_data = {"error": msg}
+        if status_code == 429:
+            error_data["retry_after"] = 60
+        await broadcast({"type": "analysis_error", "analysis_id": analysis_id, "data": error_data})
+        raise HTTPException(status_code=status_code, detail=msg) from e
 
-        if is_rate_limit:
-            msg = (
-                "Groq API rate limit reached. The system retried automatically but the limit "
-                "persists. Please wait 1–2 minutes before trying again."
-            )
-            logger.warning(f"Rate limit for {request.ticker}: {e}")
-            await broadcast({"type": "analysis_error", "data": {"error": msg, "retry_after": 60}})
-            raise HTTPException(status_code=429, detail=msg)
 
-        traceback.print_exc()
-        msg = f"Analysis failed: {e}"
-        logger.error(msg)
-        await broadcast({"type": "analysis_error", "data": {"error": msg}})
-        await send_error_alert(request.ticker, msg)
-        raise HTTPException(status_code=500, detail=msg)
+def classify_pipeline_error(e: Exception) -> tuple[int, str]:
+    """Map a pipeline exception to an HTTP status code and a user-facing message."""
+    if isinstance(e, TimeoutError):
+        return 504, str(e)
+    error_str = str(e).lower()
+    if any(kw in error_str for kw in (
+        "rate_limit", "rate limit", "429", "too many requests", "resource_exhausted"
+    )):
+        return 429, (
+            "Groq API rate limit reached. The system retried automatically but the limit "
+            "persists. Please wait 1–2 minutes before trying again."
+        )
+    return 500, f"Analysis failed: {e}"
+
+
+@app.post("/analyze")
+async def analyze_ticker(request: AnalyzeRequest):
+    """Run the full agent pipeline for a ticker and wait for the result."""
+    if not pipeline:
+        raise HTTPException(status_code=503, detail="Pipeline not initialized")
+    return await _run_analysis(str(uuid.uuid4()), request)
+
+
+@app.post("/analyses", status_code=202)
+async def start_analysis(request: AnalyzeRequest):
+    """
+    Start an analysis in the background and return its ID immediately.
+
+    Progress streams over /ws/live (filter by analysis_id); poll
+    /analyses/{analysis_id} for the final result.
+    """
+    if not pipeline:
+        raise HTTPException(status_code=503, detail="Pipeline not initialized")
+
+    analysis_id = str(uuid.uuid4())
+    job = {
+        "analysis_id": analysis_id,
+        "ticker": request.ticker,
+        "asset_type": request.asset_type,
+        "status": "running",
+        "result": None,
+        "error": None,
+    }
+    analysis_jobs[analysis_id] = job
+
+    async def run():
+        try:
+            job["result"] = await _run_analysis(analysis_id, request)
+            job["status"] = "completed"
+        except HTTPException as e:
+            job["status"] = "failed"
+            job["error"] = e.detail
+
+    # Keep a reference so the task isn't garbage-collected mid-run
+    task = asyncio.create_task(run())
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
+
+    return {k: job[k] for k in ("analysis_id", "ticker", "asset_type", "status")}
+
+
+@app.get("/analyses/{analysis_id}")
+async def get_analysis(analysis_id: str):
+    """Get the status (and result, once complete) of a background analysis."""
+    job = analysis_jobs.get(analysis_id)
+    if job:
+        return job
+
+    # Not in memory (e.g. the server restarted) — fall back to the persisted log
+    if trade_db:
+        result = await trade_db.get_analysis_by_id(analysis_id)
+        if result:
+            return {
+                "analysis_id": analysis_id,
+                "ticker": result.get("ticker"),
+                "asset_type": result.get("asset_type"),
+                "status": "completed",
+                "result": result,
+                "error": None,
+            }
+    raise HTTPException(status_code=404, detail=f"No analysis found with id {analysis_id}")
 
 
 # ─── Portfolio ────────────────────────────────────────────────
@@ -426,7 +451,7 @@ async def get_performance():
 # ─── Price & Indicators ───────────────────────────────────────
 
 @app.get("/price/{ticker}")
-async def get_price(ticker: str, asset_type: str = "stock"):
+def get_price(ticker: str, asset_type: str = "stock"):
     """Get current price and fundamental data."""
     ticker = ticker.strip().upper()
     if asset_type == "crypto":
@@ -467,7 +492,7 @@ async def get_price(ticker: str, asset_type: str = "stock"):
 
 
 @app.get("/price/{ticker}/chart")
-async def get_price_chart(ticker: str, asset_type: str = "stock"):
+def get_price_chart(ticker: str, asset_type: str = "stock"):
     """Get OHLCV data for candlestick charts."""
     ticker = ticker.strip().upper()
     try:
@@ -517,7 +542,7 @@ async def get_price_chart(ticker: str, asset_type: str = "stock"):
 
 
 @app.get("/indicators/{ticker}")
-async def get_indicators(ticker: str, asset_type: str = "stock"):
+def get_indicators(ticker: str, asset_type: str = "stock"):
     """Get technical indicators."""
     ticker = ticker.strip().upper()
     if asset_type == "crypto":
@@ -579,7 +604,7 @@ async def approve_trade(thread_id: str, request: TradeApprovalRequest):
                 asset_type=asset_type,
                 trade_signal=trade_signal,
                 approved=approved,
-                trade_date=datetime.utcnow().strftime("%Y-%m-%d")
+                trade_date=datetime.now(timezone.utc).strftime("%Y-%m-%d")
             )
 
         event_type = "trade_approved" if request.approval == "approve" else "trade_rejected"
@@ -616,190 +641,6 @@ async def get_agent_accuracy():
     return await trade_db.get_agent_accuracy()
 
 
-# ─── Locus / LocusFounder Endpoints ──────────────────────────
-
-@app.get("/locus/business")
-async def get_business_info():
-    """Public storefront — describes Quorum's services and pricing."""
-    return founder_agent.get_business_info()
-
-
-@app.get("/locus/wallet")
-async def get_wallet():
-    """Get the agent's Locus wallet balance and address."""
-    return await founder_agent.get_balance()
-
-
-@app.get("/locus/revenue")
-async def get_revenue():
-    """Get revenue summary across all checkout sessions."""
-    return get_revenue_summary()
-
-
-@app.post("/locus/checkout")
-async def create_checkout(request: CheckoutRequest):
-    """
-    Create a $5 USDC checkout session for a paid analysis.
-
-    Returns a checkout URL the client uses to pay.
-    Once payment is confirmed, call /locus/checkout/{session_id}/status
-    to poll for confirmation, then /analyze will run automatically.
-    """
-    session = await create_checkout_session(
-        ticker=request.ticker,
-        asset_type=request.asset_type,
-        selected_analysts=request.selected_analysts,
-    )
-    return session
-
-
-@app.get("/locus/checkout/{session_id}")
-async def get_checkout_session(session_id: str):
-    """Get the current state of a checkout session."""
-    session = get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    return session
-
-
-@app.get("/locus/checkout/{session_id}/status")
-async def poll_payment_status(session_id: str):
-    """
-    Poll payment status for a checkout session.
-    Returns paid=true once the USDC payment is confirmed.
-    If paid, automatically triggers the analysis pipeline.
-    """
-    result = await confirm_payment(session_id)
-
-    # Auto-trigger analysis once payment is confirmed
-    if result.get("paid") and result.get("status") != "fulfilled":
-        session = get_session(session_id)
-        if session and pipeline:
-            ticker = session["ticker"]
-            asset_type = session["asset_type"]
-            analysis_id = session_id
-
-            logger.info(
-                f"Payment confirmed for {ticker} — triggering analysis "
-                f"[session: {session_id[:8]}]"
-            )
-
-            # Run analysis in background so the poll response returns immediately
-            asyncio.create_task(
-                _run_paid_analysis(
-                    session_id=session_id,
-                    ticker=ticker,
-                    asset_type=asset_type,
-                    analysis_id=analysis_id,
-                )
-            )
-            result["analysis_triggered"] = True
-            result["analysis_id"] = analysis_id
-
-    # If already fulfilled, try to fetch and attach the result
-    if result.get("status") == "fulfilled" and trade_db:
-        analysis_result = await trade_db.get_analysis_by_session(session_id)
-        if analysis_result:
-            result["analysis_result"] = analysis_result
-
-    return result
-
-
-async def _run_paid_analysis(
-    session_id: str,
-    ticker: str,
-    asset_type: str,
-    analysis_id: str,
-):
-    """Background task: run the full pipeline after payment is confirmed."""
-    try:
-        await broadcast({
-            "type": "analysis_start",
-            "analysis_id": analysis_id,
-            "data": {
-                "ticker": ticker,
-                "asset_type": asset_type,
-                "paid": True,
-                "session_id": session_id,
-            },
-        })
-
-        async def log_callback(agent: str, stage: str, message: str, details: str = ""):
-            await broadcast({
-                "type": "analysis_log",
-                "analysis_id": analysis_id,
-                "session_id": session_id,
-                "data": {
-                    "agent": agent,
-                    "stage": stage,
-                    "message": message,
-                    "details": (details or "")[:500],
-                    "timestamp": datetime.utcnow().isoformat(),
-                },
-            })
-
-        result = await pipeline.analyze(
-            ticker=ticker,
-            asset_type=asset_type,
-            trade_date=datetime.utcnow().strftime("%Y-%m-%d"),
-            log_callback=log_callback,
-            analysis_id=analysis_id,
-        )
-
-        serialized = _serialize_state(result)
-
-        if trade_db:
-            await trade_db.save_analysis_log(
-                ticker, asset_type,
-                datetime.utcnow().strftime("%Y-%m-%d"),
-                serialized,
-                session_id=session_id,
-            )
-
-        mark_fulfilled(session_id, analysis_id)
-
-        await broadcast({
-            "type": "analysis_complete",
-            "analysis_id": analysis_id,
-            "session_id": session_id,
-            "data": serialized,
-        })
-
-        logger.info(
-            f"Paid analysis complete — {ticker} | session: {session_id[:8]} | "
-            f"analysis: {analysis_id[:8]}"
-        )
-
-    except Exception as e:
-        logger.error(f"Paid analysis failed for session {session_id}: {e}")
-        await broadcast({
-            "type": "analysis_error",
-            "analysis_id": analysis_id,
-            "session_id": session_id,
-            "data": {"error": str(e)},
-        })
-
-
-@app.get("/locus/mock-pay/{session_id}")
-async def mock_pay(session_id: str):
-    """
-    Development endpoint: simulate a USDC payment for a checkout session.
-    Only works for mock/dev sessions. Do not use in production.
-    """
-    confirmed = mock_confirm(session_id)
-    if not confirmed:
-        raise HTTPException(
-            status_code=400,
-            detail="Session not found, already paid, or not a mock session",
-        )
-    return {
-        "success": True,
-        "message": "Mock payment confirmed",
-        "session_id": session_id,
-        "next": f"/locus/checkout/{session_id}/status",
-    }
-
-
 # ─── Real-Time: Watchlist & Price Stream ─────────────────────
 
 class WatchlistUpdateRequest(BaseModel):
@@ -813,7 +654,7 @@ async def get_realtime_status():
         "price_stream": {
             "running": price_stream._running if price_stream else False,
             "watchlist": price_stream.get_watchlist() if price_stream else [],
-            "poll_interval_seconds": 15,
+            "poll_interval_seconds": PRICE_POLL_INTERVAL,
             "last_prices": price_stream.get_last_prices() if price_stream else {},
         },
         "scanner": watchlist_scanner.get_status() if watchlist_scanner else {"running": False},

@@ -41,8 +41,8 @@ if not GROQ_API_KEYS:
     )
 
 # Valid Groq models — update here if Groq retires/adds models
-DEEP_THINK_MODEL = os.getenv("DEEP_THINK_MODEL", "llama-3.3-70b-versatile")   # Complex reasoning
-QUICK_THINK_MODEL = os.getenv("QUICK_THINK_MODEL", "llama-3.1-8b-instant")    # Fast tasks
+DEEP_THINK_MODEL = os.getenv("DEEP_THINK_MODEL", "openai/gpt-oss-120b")   # Complex reasoning
+QUICK_THINK_MODEL = os.getenv("QUICK_THINK_MODEL", "openai/gpt-oss-20b")    # Fast tasks
 
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.7"))
 LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "3"))
@@ -83,6 +83,8 @@ DATA_CACHE_TTL = int(os.getenv("DATA_CACHE_TTL", "300"))   # 5 minutes
 
 # ─── Real-Time ────────────────────────────────────────────────
 PRICE_POLL_INTERVAL = int(os.getenv("PRICE_POLL_INTERVAL", "15"))       # seconds between price updates
+# Scheduled scans run full pipelines (many LLM calls), so they are opt-in
+SCANNER_ENABLED = os.getenv("SCANNER_ENABLED", "false").lower() == "true"
 SCAN_INTERVAL_MINUTES = int(os.getenv("SCAN_INTERVAL_MINUTES", "60"))   # minutes between full scans
 SCAN_COOLDOWN_MINUTES = int(os.getenv("SCAN_COOLDOWN_MINUTES", "30"))   # min gap between same-ticker scans
 ALERT_CONFIDENCE_THRESHOLD = float(os.getenv("ALERT_CONFIDENCE_THRESHOLD", "0.65"))  # min confidence to alert
@@ -99,18 +101,11 @@ WATCHLIST_DEFAULT = ["AAPL", "NVDA", "TSLA", "BTC/USD", "ETH/USD"]
 # ─── Database ─────────────────────────────────────────────────
 SQLITE_DB_PATH = DB_DIR / "quorum.db"
 
-# ─── Locus / LocusFounder ─────────────────────────────────────
-LOCUS_API_KEY = os.getenv("LOCUS_API_KEY", "")          # Optional: pre-provisioned key
-LOCUS_BETA_API = "https://beta-api.paywithlocus.com/api"
-LOCUS_ENABLED = os.getenv("LOCUS_ENABLED", "true").lower() == "true"
-ANALYSIS_PRICE_USDC = float(os.getenv("ANALYSIS_PRICE_USDC", "5.00"))
-
 # ─── Server ───────────────────────────────────────────────────
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("API_PORT", "8000"))
 CORS_ORIGINS = os.getenv(
     "CORS_ORIGINS", 
     "http://localhost:3000,http://127.0.0.1:3000,"
-    "https://quorum-frontend-74691596771.us-central1.run.app,"
-    "https://svc-mp4160jcaxqzmks9.buildwithlocus.com"
+    "https://quorum-frontend-74691596771.us-central1.run.app"
 ).split(",")

@@ -152,7 +152,9 @@ class WatchlistScanner:
         logger.info(f"Scanner: starting scan of {len(due)} tickers")
 
         for entry in due:
-            if not self._running:
+            # Stop early only if the scheduled loop was started and then stopped;
+            # manual scans (scheduler never started) run to completion.
+            if self._task is not None and not self._running:
                 break
             ticker = entry["ticker"]
             asset_type = entry["asset_type"]

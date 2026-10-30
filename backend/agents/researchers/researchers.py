@@ -9,6 +9,7 @@ from datetime import datetime
 import json
 import logging
 from utils.json_parser import safe_parse_json
+from utils.event_bus import emit_agent_log
 
 logger = logging.getLogger("quorum.research")
 
@@ -141,6 +142,11 @@ Make your BULL case.
         debate.round_count = len(debate.bull_arguments)
 
         logger.info(f"🐂 Bull Researcher done — conviction: {result.get('conviction', 'N/A')}")
+        await emit_agent_log(
+            state.get("analysis_id"), "Bull Researcher", "completed",
+            f"Round {debate.round_count} — conviction {result.get('conviction', 'N/A')}",
+            msg.content,
+        )
         return {"investment_debate": debate.dict()}
 
     return bull_researcher_node
@@ -191,6 +197,11 @@ Make your BEAR case.
         debate.bear_arguments.append(msg)
 
         logger.info(f"🐻 Bear Researcher done — conviction: {result.get('conviction', 'N/A')}")
+        await emit_agent_log(
+            state.get("analysis_id"), "Bear Researcher", "completed",
+            f"Round {len(debate.bear_arguments)} — conviction {result.get('conviction', 'N/A')}",
+            msg.content,
+        )
         return {"investment_debate": debate.dict()}
 
     return bear_researcher_node
@@ -233,6 +244,11 @@ Deliver your verdict.
         debate.investment_thesis = result.get("investment_thesis", "")
 
         logger.info(f"⚖️ Research Judge verdict: {debate.judge_verdict} (conf: {debate.judge_confidence:.0%})")
+        await emit_agent_log(
+            state.get("analysis_id"), "Research Judge", "completed",
+            f"Verdict: {debate.judge_verdict} ({debate.judge_confidence:.0%} confidence)",
+            debate.investment_thesis,
+        )
         return {"investment_debate": debate.dict()}
 
     return research_judge_node

@@ -3,6 +3,7 @@ Quorum — News Analyst Agent
 Monitors global news, macroeconomic events, and insider activity.
 """
 
+import asyncio
 from langchain_core.messages import HumanMessage, SystemMessage
 from models.schemas import AnalystReport
 from data.stock_provider import StockProvider
@@ -56,8 +57,8 @@ def create_news_analyst(llm):
             })
 
         # Fetch news and insider data
-        news = stock_provider.get_news(ticker)
-        insiders = stock_provider.get_insider_transactions(ticker)
+        news = await asyncio.to_thread(stock_provider.get_news, ticker)
+        insiders = await asyncio.to_thread(stock_provider.get_insider_transactions, ticker)
 
         news_text = "\n".join(
             [f"- {n['title']} ({n['publisher']})" for n in news]

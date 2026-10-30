@@ -132,8 +132,8 @@ class PriceStream:
 
             try:
                 if asset_type == "crypto":
-                    price = crypto_provider.get_current_price(ticker)
-                    info = crypto_provider.get_ticker_info(ticker) if price else {}
+                    price = await asyncio.to_thread(crypto_provider.get_current_price, ticker)
+                    info = await asyncio.to_thread(crypto_provider.get_ticker_info, ticker) if price else {}
                     if price:
                         updates[ticker] = {
                             "ticker": ticker,
@@ -146,7 +146,7 @@ class PriceStream:
                             "timestamp": datetime.utcnow().isoformat(),
                         }
                 else:
-                    indicators = stock_provider.get_technical_indicators(ticker)
+                    indicators = await asyncio.to_thread(stock_provider.get_technical_indicators, ticker)
                     price = indicators.get("current_price")
                     if price:
                         updates[ticker] = {

@@ -8,4 +8,3 @@ db/
 data_cache/
 chroma_store/
 *.db
-locus_credentials.json
