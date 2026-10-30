@@ -10,19 +10,25 @@ interface PriceData {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+interface RawPrice {
+    ticker: string;
+    price: number;
+    asset_type: string;
+    change_pct_24h?: number;
+    change_pct_1d?: number;
+}
+
 export default function PriceTicker() {
     const [prices, setPrices] = useState<PriceData[]>([]);
-    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
         const fetchPrices = async () => {
             try {
                 const res = await fetch(`${API_BASE}/realtime/prices`);
                 if (res.ok) {
                     const data = await res.json();
                     // Convert dict {"TICKER": {...}} to array for the ticker
-                    const arrayData: PriceData[] = Object.values(data).map((item: any) => ({
+                    const arrayData: PriceData[] = Object.values(data as Record<string, RawPrice>).map((item) => ({
                         symbol: item.ticker,
                         price: item.price,
                         change_percent: item.asset_type === 'crypto' 
@@ -50,7 +56,7 @@ export default function PriceTicker() {
         return () => clearInterval(interval);
     }, []);
 
-    if (!mounted || prices.length === 0) return null;
+    if (prices.length === 0) return null;
 
     return (
         <div className="price-ticker-bar">

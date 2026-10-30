@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    TrendingUp, TrendingDown, DollarSign, Activity,
-    Zap, Brain, Search, ChevronDown, ChevronUp, X,
+    TrendingUp, DollarSign, Activity, FileText,
+    Zap, Brain, Search, ChevronDown, ChevronUp,
     Loader2, CheckCircle2, Database, MessageSquare,
     BarChart3, Newspaper, Landmark, HeartPulse,
     Clock, Radio, CircleDot,
@@ -16,7 +16,7 @@ const PriceChart = dynamic(() => import('./PriceChart'), { ssr: false });
 const PortfolioChart = dynamic(() => import('./PortfolioChart'), { ssr: false });
 const ConfidenceRadar = dynamic(() => import('./ConfidenceRadar'), { ssr: false });
 const TradeApprovalModal = dynamic(() => import('./TradeApprovalModal'), { ssr: false });
-const CheckoutModal = dynamic(() => import('./CheckoutModal'), { ssr: false });
+const RunAnalysisModal = dynamic(() => import('./RunAnalysisModal'), { ssr: false });
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws/live';
@@ -686,7 +686,7 @@ export default function DashboardContent() {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
     const analysisIdRef = useRef<string | null>(null);
-    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+    const [isReportOpen, setIsReportOpen] = useState(false);
 
     // WebSocket connection
     useEffect(() => {
@@ -922,19 +922,19 @@ export default function DashboardContent() {
 
                     <button
                         className="btn-primary"
-                        onClick={() => setIsCheckoutOpen(true)}
+                        onClick={() => setIsReportOpen(true)}
                         disabled={isAnalyzing}
-                        style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 6, 
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
                             whiteSpace: 'nowrap',
                             background: 'var(--bull)',
                             color: '#000',
                             border: 'none'
                         }}
                     >
-                        <DollarSign size={14} /> Paid Report
+                        <FileText size={14} /> Live Report
                     </button>
                 </div>
             </div>
@@ -1180,9 +1180,9 @@ export default function DashboardContent() {
                     </p>
                 </div>
             )}
-            <CheckoutModal 
-                isOpen={isCheckoutOpen} 
-                onClose={() => setIsCheckoutOpen(false)} 
+            <RunAnalysisModal
+                isOpen={isReportOpen}
+                onClose={() => setIsReportOpen(false)}
                 initialTicker={ticker}
             />
         </div>

@@ -1,14 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
 const PriceTicker = dynamic(() => import('@/components/PriceTicker'), { ssr: false });
-const CheckoutModal = dynamic(() => import('@/components/CheckoutModal'), { ssr: false });
+const RunAnalysisModal = dynamic(() => import('@/components/RunAnalysisModal'), { ssr: false });
 
 export default function LandingPage() {
-    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+    const [isRunOpen, setIsRunOpen] = useState(false);
     useEffect(() => {
         const yearSpan = document.getElementById('y');
         if (yearSpan) yearSpan.textContent = new Date().getFullYear().toString();
@@ -47,18 +46,18 @@ export default function LandingPage() {
                 }
 
                 .wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
-                
-                h1, h2, h3, h4 { 
-                    font-family: 'Space Grotesk', sans-serif; 
-                    font-weight: 600; 
-                    letter-spacing: -0.02em; 
-                    line-height: 1.1; 
+
+                h1, h2, h3, h4 {
+                    font-family: 'Space Grotesk', sans-serif;
+                    font-weight: 600;
+                    letter-spacing: -0.02em;
+                    line-height: 1.1;
                 }
-                
+
                 h1 { font-size: clamp(2.4rem, 5.2vw, 4.4rem); letter-spacing: -0.035em; }
                 h2 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); margin-bottom: .5rem; }
                 h3 { font-size: 1.15rem; letter-spacing: -0.01em; }
-                
+
                 p { color: var(--muted); }
 
                 header.nav {
@@ -71,6 +70,7 @@ export default function LandingPage() {
                 .logo { display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk'; font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
                 .logo-dot { width: 10px; height: 10px; background: var(--accent); box-shadow: 0 0 14px var(--accent); display: inline-block; }
                 .nav-links { display: flex; gap: 28px; font-size: .85rem; color: var(--muted); }
+                .nav-links a { color: inherit; text-decoration: none; }
                 .nav-links a:hover { color: var(--text); }
                 @media(max-width: 720px) { .nav-links { display: none; } }
 
@@ -183,9 +183,8 @@ export default function LandingPage() {
                 .price { background: var(--bg-1); border: 1px solid var(--line); padding: 32px; }
                 .price.feature { border-color: var(--accent); box-shadow: 0 0 0 1px #6c63ff44, 0 0 60px #6c63ff15; }
                 .price .tag-rec { display: inline-block; font-size: .7rem; color: var(--accent); letter-spacing: .1em; margin-bottom: 12px; }
-                .price .amt { font-family: 'Space Grotesk'; font-size: 3rem; font-weight: 700; letter-spacing: -0.03em; }
-                .price .per { color: var(--muted); font-size: .85rem; margin-bottom: 4px; }
-                .price .save { color: var(--bull); font-size: .78rem; margin-top: 4px; }
+                .price h3 { font-size: 1.3rem; }
+                .price .per { color: var(--muted); font-size: .85rem; margin-top: 6px; }
                 .price ul { list-style: none; margin: 22px 0; font-size: .85rem; }
                 .price li { padding: 8px 0; color: #cfd3dc; border-bottom: 1px dashed var(--line); display: flex; gap: 10px; }
                 .price li::before { content: "✓"; color: var(--accent); }
@@ -204,6 +203,7 @@ export default function LandingPage() {
                 .final p { max-width: 520px; margin: 0 auto 32px; }
 
                 footer { border-top: 1px solid var(--line); padding: 36px 0; font-size: .78rem; color: var(--muted); }
+                footer a { color: var(--text); }
                 .foot-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; }
 
                 @media (prefers-reduced-motion: no-preference) {
@@ -213,7 +213,7 @@ export default function LandingPage() {
                     .ticker { animation-delay: .3s; }
                     @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
                 }
-                
+
                 /* Override main content padding from AppShell */
                 :global(.main-content) {
                     margin-left: 0 !important;
@@ -232,34 +232,36 @@ export default function LandingPage() {
                     <nav className="nav-links">
                         <a href="#how">Pipeline</a>
                         <a href="#sample">Sample report</a>
-                        <a href="#pricing">Pricing</a>
+                        <a href="#stack">Architecture</a>
                         <a href="#faq">FAQ</a>
+                        <a href="/dashboard">Dashboard</a>
+                        <a href="https://github.com/nishnarudkar/Quorum---Multi-Agent-LLM-Trading-Framework" target="_blank" rel="noopener noreferrer">GitHub</a>
                     </nav>
-                    <button onClick={() => setIsCheckoutOpen(true)} className="btn" style={{ padding: '10px 18px', fontSize: '.78rem' }}>Run a report</button>
+                    <button onClick={() => setIsRunOpen(true)} className="btn" style={{ padding: '10px 18px', fontSize: '.78rem' }}>Run analysis</button>
                 </div>
             </header>
 
             <main>
                 <section className="hero">
                     <div className="wrap">
-                        <div className="eyebrow"><span className="pulse"></span> 13 AGENTS ONLINE · DEBATE ROOM OPEN</div>
-                        <h1>13 AI analysts will argue your next trade, before you make it.</h1>
-                        <p className="lead">Institutional-grade research delivered in five minutes for the price of a coffee. Bull versus bear, in writing. Risk committee in dissent. Judge on the record.</p>
+                        <div className="eyebrow"><span className="pulse"></span> 12 AGENTS ONLINE · DEBATE ROOM OPEN</div>
+                        <h1>Twelve AI agents will argue your next trade, before you make it.</h1>
+                        <p className="lead">A multi-agent research desk built on LangGraph. Analysts gather the data, bull and bear researchers debate it, a risk committee pushes back, and every argument is streamed to you live.</p>
                         <div className="hero-cta">
-                            <button onClick={() => setIsCheckoutOpen(true)} className="btn">Run a report — $5</button>
+                            <button onClick={() => setIsRunOpen(true)} className="btn">Run an analysis</button>
                             <a href="#sample" className="btn btn-ghost">See a sample</a>
                         </div>
-                        <div className="hero-meta">USDC or card · delivered &lt; 5 min · no subscription</div>
+                        <div className="hero-meta">Free &amp; open source · paper trading only · not financial advice</div>
 
                         <div className="ticker" aria-label="Live debate feed">
                             <div className="ticker-head">
                                 <span>LIVE · NVDA / 03:42:11 UTC</span>
-                                <span>SESSION #4,812</span>
+                                <span>DEBATE · ROUND 2 / 2</span>
                             </div>
                             <div className="ticker-body">
-                                <div className="log"><span className="t">03:42:01</span><span className="tag tag-bull">BULL-3</span><span className="msg">Datacenter rev +154% YoY. Hyperscaler capex guides confirm orderbook through FY26. Mag-7 GPU TAM still expanding.</span></div>
-                                <div className="log"><span className="t">03:42:04</span><span className="tag tag-bear">BEAR-2</span><span className="msg">Gross margin printed 75% — peak. China export controls now structural. Custom silicon at AMZN, GOOG accelerating.</span></div>
-                                <div className="log"><span className="t">03:42:07</span><span className="tag tag-bull">BULL-1</span><span className="msg">CUDA moat ≠ silicon. Software switching cost compounding. Inference TAM dwarfs training; you're modeling the wrong cycle.</span></div>
+                                <div className="log"><span className="t">03:42:01</span><span className="tag tag-bull">BULL</span><span className="msg">Datacenter rev +154% YoY. Hyperscaler capex guides confirm orderbook through FY26. Mag-7 GPU TAM still expanding.</span></div>
+                                <div className="log"><span className="t">03:42:04</span><span className="tag tag-bear">BEAR</span><span className="msg">Gross margin printed 75% — peak. China export controls now structural. Custom silicon at AMZN, GOOG accelerating.</span></div>
+                                <div className="log"><span className="t">03:42:07</span><span className="tag tag-bull">BULL</span><span className="msg">CUDA moat ≠ silicon. Software switching cost compounding. Inference TAM dwarfs training; you&apos;re modeling the wrong cycle.</span></div>
                                 <div className="log"><span className="t">03:42:09</span><span className="tag tag-risk">RISK</span><span className="msg">Position sizing must reflect 38% IV. Single-name exposure capped at 4% portfolio per committee charter.</span></div>
                                 <div className="log"><span className="t">03:42:11</span><span className="tag tag-judge">JUDGE</span><span className="msg">Verdict pending. Bear case requires 2027 margin compression assumption Bull has not yet rebutted...</span></div>
                             </div>
@@ -271,14 +273,14 @@ export default function LandingPage() {
                     <div className="wrap">
                         <div className="sec-intro">
                             <div className="kicker">The gap</div>
-                            <h2>You have a full-time job. The market doesn't care.</h2>
-                            <p>Most retail capital trades on Twitter screenshots and gut. Institutional desks don't. You shouldn't either.</p>
+                            <h2>You have a full-time job. The market doesn&apos;t care.</h2>
+                            <p>Most retail capital trades on Twitter screenshots and gut. Institutional desks don&apos;t. You shouldn&apos;t either.</p>
                         </div>
                         <div className="problem-grid">
                             <div>
                                 <div className="n">01 / TIME</div>
                                 <h3>A 10-K takes six hours</h3>
-                                <p>Reading one filing is a Sunday. You manage twelve positions. The math doesn't work.</p>
+                                <p>Reading one filing is a Sunday. You manage twelve positions. The math doesn&apos;t work.</p>
                             </div>
                             <div>
                                 <div className="n">02 / OPACITY</div>
@@ -288,7 +290,7 @@ export default function LandingPage() {
                             <div>
                                 <div className="n">03 / CONVICTION</div>
                                 <h3>One-sided takes destroy conviction</h3>
-                                <p>If you can't articulate the bear case, you'll panic-sell at the bottom. Every time.</p>
+                                <p>If you can&apos;t articulate the bear case, you&apos;ll panic-sell at the bottom. Every time.</p>
                             </div>
                         </div>
                     </div>
@@ -298,33 +300,33 @@ export default function LandingPage() {
                     <div className="wrap">
                         <div className="sec-intro">
                             <div className="kicker">The pipeline</div>
-                            <h2>Thirteen agents. One verdict. Full transcript.</h2>
-                            <p>You don't trust the brand. You watch the work — every argument, dissent, and rebuttal is logged into your report.</p>
+                            <h2>Twelve agents. One verdict. Full transcript.</h2>
+                            <p>You don&apos;t trust the brand. You watch the work — every argument, dissent, and rebuttal is logged into your report.</p>
                         </div>
                         <div className="pipeline">
                             <div className="stage">
                                 <div className="step">STAGE 01</div>
                                 <h3>Intake & data</h3>
-                                <p>Filings, on-chain, price action, macro context, news flow ingested for the ticker.</p>
-                                <div className="agents"><span className="agent">FUNDAMENTAL</span><span className="agent">TECHNICAL</span><span className="agent">ON-CHAIN</span><span className="agent">MACRO</span></div>
+                                <p>Four analysts run in parallel over price action, technical indicators, news flow, sentiment, and fundamentals.</p>
+                                <div className="agents"><span className="agent">MARKET</span><span className="agent">SENTIMENT</span><span className="agent">NEWS</span><span className="agent">FUNDAMENTALS</span></div>
                             </div>
                             <div className="stage active">
                                 <div className="step">STAGE 02</div>
                                 <h3>Adversarial debate</h3>
-                                <p>Three bulls and three bears argue in rounds. Each must rebut the prior turn or concede the point.</p>
-                                <div className="agents"><span className="agent on">BULL-1</span><span className="agent on">BULL-2</span><span className="agent on">BULL-3</span><span className="agent on">BEAR-1</span><span className="agent on">BEAR-2</span><span className="agent on">BEAR-3</span></div>
+                                <p>A bull and a bear researcher argue over multiple rounds, each rebutting the prior turn. A research judge weighs the transcript.</p>
+                                <div className="agents"><span className="agent on">BULL</span><span className="agent on">BEAR</span><span className="agent on">JUDGE</span></div>
                             </div>
                             <div className="stage">
                                 <div className="step">STAGE 03</div>
-                                <h3>Risk committee</h3>
-                                <p>Two specialists stress-test the surviving thesis against tail risk, liquidity, correlation, and sizing.</p>
-                                <div className="agents"><span className="agent">RISK-VOL</span><span className="agent">RISK-LIQ</span></div>
+                                <h3>Trader &amp; risk committee</h3>
+                                <p>A trader drafts the plan; aggressive, conservative, and neutral risk analysts stress-test sizing, stops, and tail risk.</p>
+                                <div className="agents"><span className="agent">TRADER</span><span className="agent">AGGRESSIVE</span><span className="agent">CONSERVATIVE</span><span className="agent">NEUTRAL</span></div>
                             </div>
                             <div className="stage">
                                 <div className="step">STAGE 04</div>
-                                <h3>Judge & trade plan</h3>
-                                <p>Senior judge issues verdict, conviction score, and an executable plan: entry, exits, sizing, catalysts.</p>
-                                <div className="agents"><span className="agent">JUDGE</span><span className="agent">PLANNER</span></div>
+                                <h3>Risk judge &amp; approval</h3>
+                                <p>The chief risk officer signs off on the final plan. Low-confidence trades pause for your approval before any paper order is placed.</p>
+                                <div className="agents"><span className="agent">CRO</span><span className="agent">YOU</span></div>
                             </div>
                         </div>
                     </div>
@@ -341,16 +343,16 @@ export default function LandingPage() {
                             <div className="report-head">
                                 <div>
                                     <div className="tk">NVDA · NASDAQ</div>
-                                    <div style={{ fontSize: '.75rem', color: 'var(--muted)', marginTop: '4px' }}>Report #04812 · Generated 03:47 UTC · 4m 36s</div>
+                                    <div style={{ fontSize: '.75rem', color: 'var(--muted)', marginTop: '4px' }}>Illustrative sample report</div>
                                 </div>
                                 <div className="verdict">VERDICT: LONG · CONVICTION 7.4 / 10</div>
                             </div>
                             <div className="tx-col">
                                 <h4>Debate transcript (excerpt)</h4>
-                                <div className="tx bull"><div className="who">BULL-2 · ROUND 3</div><div className="body">"Inference is now 40% of datacenter mix and growing. Bear's training-cycle peak thesis ignores that inference compute is consumed continuously, not in bursts."</div></div>
-                                <div className="tx bear"><div className="who">BEAR-1 · ROUND 3</div><div className="body">"Concede inference durability. But Blackwell yield issues and the $4B ASP risk on H20 China-substitute SKUs are unmodeled in consensus. Q3 guide will surprise lower."</div></div>
-                                <div className="tx bull"><div className="who">BULL-3 · ROUND 4</div><div className="body">"H20 represents &lt;6% of next-quarter revenue at current run-rate. Even total impairment is sub-1% impact on FY EPS."</div></div>
-                                <div className="tx risk"><div className="who">RISK-VOL · COMMITTEE</div><div className="body">"38% IV30, 1.7 beta. Position sizing capped at 4% NAV. Strike entry only on confirmed reclaim of 50DMA to avoid pre-earnings drift."</div></div>
+                                <div className="tx bull"><div className="who">BULL · ROUND 2</div><div className="body">&quot;Inference is now 40% of datacenter mix and growing. Bear&apos;s training-cycle peak thesis ignores that inference compute is consumed continuously, not in bursts.&quot;</div></div>
+                                <div className="tx bear"><div className="who">BEAR · ROUND 2</div><div className="body">&quot;Concede inference durability. But Blackwell yield issues and the $4B ASP risk on H20 China-substitute SKUs are unmodeled in consensus. Q3 guide will surprise lower.&quot;</div></div>
+                                <div className="tx bull"><div className="who">BULL · REBUTTAL</div><div className="body">&quot;H20 represents &lt;6% of next-quarter revenue at current run-rate. Even total impairment is sub-1% impact on FY EPS.&quot;</div></div>
+                                <div className="tx risk"><div className="who">CONSERVATIVE · RISK COMMITTEE</div><div className="body">&quot;38% IV30, 1.7 beta. Position sizing capped at 4% NAV. Strike entry only on confirmed reclaim of 50DMA to avoid pre-earnings drift.&quot;</div></div>
                             </div>
                             <div className="plan-col">
                                 <h4>Trade plan</h4>
@@ -372,39 +374,38 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section id="pricing">
+                <section id="stack">
                     <div className="wrap">
                         <div className="sec-intro">
-                            <div className="kicker">Pricing</div>
-                            <h2>Pay per report. No subscription.</h2>
-                            <p>USDC on Base, or card. No account. No upsell. Generate, read, decide.</p>
+                            <div className="kicker">Architecture</div>
+                            <h2>How it&apos;s built.</h2>
+                            <p>A stateful agent graph behind a streaming API, with a human checkpoint before anything trades.</p>
                         </div>
                         <div className="price-grid">
                             <div className="price">
-                                <div className="amt">$5</div>
-                                <div className="per">single Quorum report</div>
+                                <h3>Agent orchestration</h3>
+                                <div className="per">LangGraph · Groq · ChromaDB</div>
                                 <ul>
-                                    <li>One ticker or token, on demand</li>
-                                    <li>Full 13-agent debate transcript</li>
-                                    <li>Risk committee critique</li>
-                                    <li>Judge verdict + executable trade plan</li>
-                                    <li>Delivered in &lt; 5 minutes</li>
+                                    <li>Parallel analyst fan-out with LangGraph Send</li>
+                                    <li>Multi-round bull/bear and risk debates</li>
+                                    <li>SQLite checkpointing; human-in-the-loop interrupts</li>
+                                    <li>Vector memory of past decisions per agent</li>
+                                    <li>API-key rotation and rate-limit backoff</li>
                                 </ul>
-                                <button onClick={() => setIsCheckoutOpen(true)} className="btn" style={{ width: '100%', textAlign: 'center' }}>Run a report</button>
+                                <button onClick={() => setIsRunOpen(true)} className="btn" style={{ width: '100%', textAlign: 'center' }}>Run an analysis</button>
                             </div>
                             <div className="price feature">
-                                <div className="tag-rec">▸ RECOMMENDED</div>
-                                <div className="amt">$20</div>
-                                <div className="per">five-report pack</div>
-                                <div className="save">Save $5 — credits never expire</div>
+                                <div className="tag-rec">▸ FULL STACK</div>
+                                <h3>Data, streaming &amp; execution</h3>
+                                <div className="per">FastAPI · WebSockets · Next.js</div>
                                 <ul>
-                                    <li>Everything in single report, ×5</li>
-                                    <li>Use across stocks and crypto</li>
-                                    <li>Re-run same ticker as thesis evolves</li>
-                                    <li>Priority queue when load is high</li>
-                                    <li>Export to PDF for your records</li>
+                                    <li>Yahoo Finance, Alpaca, and CCXT market data</li>
+                                    <li>Live agent telemetry over WebSockets</li>
+                                    <li>Background jobs with pollable results</li>
+                                    <li>Alpaca paper-trade execution and P&amp;L tracking</li>
+                                    <li>Watchlist scanner with Telegram/Discord alerts</li>
                                 </ul>
-                                <button onClick={() => setIsCheckoutOpen(true)} className="btn" style={{ width: '100%', textAlign: 'center' }}>Buy 5-pack</button>
+                                <a href="/dashboard" className="btn" style={{ width: '100%', textAlign: 'center' }}>Open dashboard</a>
                             </div>
                         </div>
                     </div>
@@ -417,28 +418,28 @@ export default function LandingPage() {
                             <h2>Reasonable questions.</h2>
                         </div>
                         <details><summary>How is this different from Messari, Seeking Alpha, or sell-side notes?</summary>
-                            <p>Those are black boxes — you get a conclusion from an analyst whose incentives you can't see. Quorum is a glass box. You read every argument, every dissent, every rebuttal. If the bull case fails the rebuttal test, you watch it fail. The verdict is a byproduct of the transcript, not a brand statement.</p>
+                            <p>Those are black boxes — you get a conclusion from an analyst whose incentives you can&apos;t see. Quorum is a glass box. You read every argument, every dissent, every rebuttal. If the bull case fails the rebuttal test, you watch it fail. The verdict is a byproduct of the transcript, not a brand statement.</p>
                         </details>
-                        <details><summary>Is the output actually accurate? It's still AI.</summary>
-                            <p>Each agent is constrained to cited sources — filings, on-chain data, price/volume, and recent news. Adversarial structure surfaces weak claims before they reach the verdict. We publish the full transcript precisely so you can audit reasoning, not trust a black-box score. Treat it as institutional due diligence at retail speed, not as financial advice.</p>
+                        <details><summary>Is the output actually accurate? It&apos;s still AI.</summary>
+                            <p>Agents work from real market data, indicators, news, and fundamentals, and the adversarial structure surfaces weak claims before they reach the verdict. Language models can still be wrong, which is exactly why the full transcript is published: audit the reasoning rather than trust a score. This is a research tool, not financial advice.</p>
                         </details>
                         <details><summary>What tickers and tokens are supported?</summary>
-                            <p>All US-listed equities, major ETFs, and the top 200 crypto assets by liquidity. Microcaps and illiquid tokens are flagged with reduced confidence. If you request an unsupported asset, no charge.</p>
+                            <p>US-listed equities and ETFs (via Yahoo Finance and Alpaca) and major crypto pairs such as BTC/USD and ETH/USD (via CCXT). Thinly traded assets may have incomplete data, which lowers agent confidence.</p>
                         </details>
-                        <details><summary>How does payment work?</summary>
-                            <p>USDC on Base (preferred — settles instantly, no account) or credit card via standard processor. No subscription, no auto-renew. A $5 report is $5.</p>
+                        <details><summary>Does it trade real money?</summary>
+                            <p>No. Approved trades are sent to an Alpaca paper-trading account, and low-confidence signals wait for a human to approve or reject them first.</p>
                         </details>
-                        <details><summary>Do you store my queries or trades?</summary>
-                            <p>Reports are generated, delivered, and tied to a session token you control. No identity required for USDC payments. We don't sell data and don't run analytics on your queries.</p>
+                        <details><summary>Which models power the agents?</summary>
+                            <p>Open-weight models served by Groq: a fast 20B model for the analysts, researchers, and debaters, and a 120B model for the judges that make the final calls. Models are configurable via environment variables.</p>
                         </details>
                     </div>
                 </section>
 
                 <section className="final">
                     <div className="wrap">
-                        <h2>Pick a ticker. Let thirteen analysts fight it out.</h2>
-                        <p>Five minutes. Five dollars. A transcript you can actually defend in a drawdown.</p>
-                        <button onClick={() => setIsCheckoutOpen(true)} className="btn">Run a report</button>
+                        <h2>Pick a ticker. Let twelve agents fight it out.</h2>
+                        <p>A few minutes, a full debate transcript, and a trade plan you can actually defend in a drawdown.</p>
+                        <button onClick={() => setIsRunOpen(true)} className="btn">Run an analysis</button>
                     </div>
                 </section>
             </main>
@@ -446,15 +447,15 @@ export default function LandingPage() {
             <footer>
                 <div className="wrap foot-inner">
                     <div className="logo"><span className="logo-dot"></span>QUORUM</div>
-                    <div>The glass-box research firm · © <span id="y">2025</span></div>
+                    <div>Open-source multi-agent research · <a href="https://github.com/nishnarudkar/Quorum---Multi-Agent-LLM-Trading-Framework" target="_blank" rel="noopener noreferrer">GitHub</a> · © <span id="y">2025</span></div>
                     <div>Not financial advice. Markets are risky. Read the transcript.</div>
                 </div>
             </footer>
 
             <PriceTicker />
-            <CheckoutModal 
-                isOpen={isCheckoutOpen} 
-                onClose={() => setIsCheckoutOpen(false)} 
+            <RunAnalysisModal
+                isOpen={isRunOpen}
+                onClose={() => setIsRunOpen(false)}
             />
         </div>
     );

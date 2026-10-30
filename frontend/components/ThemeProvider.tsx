@@ -23,7 +23,9 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     useEffect(() => {
         // Read saved preference or system preference
         const saved = localStorage.getItem('quorum-theme') as Theme | null;
+        // Must run after mount (not in a lazy initializer) to avoid an SSR hydration mismatch
         if (saved === 'dark' || saved === 'light') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setTheme(saved);
         } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
             setTheme('dark');

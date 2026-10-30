@@ -18,16 +18,33 @@ interface LogEntry {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws/live';
 
+// Display names emitted by the backend agents, in pipeline order
+const AGENTS = [
+    { name: 'Market Analyst', short: 'MARKET' },
+    { name: 'Sentiment Analyst', short: 'SENTIMENT' },
+    { name: 'News Analyst', short: 'NEWS' },
+    { name: 'Fundamentals Analyst', short: 'FUNDAMENTALS' },
+    { name: 'Bull Researcher', short: 'BULL' },
+    { name: 'Bear Researcher', short: 'BEAR' },
+    { name: 'Research Judge', short: 'JUDGE' },
+    { name: 'Trader', short: 'TRADER' },
+    { name: 'Aggressive Risk Analyst', short: 'AGGRESSIVE' },
+    { name: 'Conservative Risk Analyst', short: 'CONSERVATIVE' },
+    { name: 'Neutral Risk Analyst', short: 'NEUTRAL' },
+    { name: 'Risk Judge', short: 'CRO' },
+];
+
 function ReportContent() {
     const searchParams = useSearchParams();
-    const sessionId = searchParams.get('session_id');
-    
-    const [status, setStatus] = useState<'payment' | 'live' | 'completed' | 'error'>('payment');
+    const analysisId = searchParams.get('id');
+
+    const [status, setStatus] = useState<'connecting' | 'live' | 'completed' | 'error'>('connecting');
     const [logs, setLogs] = useState<LogEntry[]>([]);
+    // The report renders many optional, loosely-typed fields of the pipeline state
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState('');
-    const [progress, setProgress] = useState(0);
-    
+
     const wsRef = useRef<WebSocket | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -35,42 +52,55 @@ function ReportContent() {
         window.print();
     };
 
-    // Calculate progress based on unique agents mentioned in logs
-    useEffect(() => {
-        const uniqueAgents = new Set(logs.map(l => l.agent)).size;
-        // Total agents is 13
-        const p = Math.min(Math.round((uniqueAgents / 13) * 100), 100);
-        setProgress(p);
-    }, [logs]);
+    const doneAgents = new Set(logs.filter(l => l.stage === 'completed').map(l => l.agent));
+    const progress = Math.min(Math.round((doneAgents.size / AGENTS.length) * 100), 100);
+    const currentAgent = logs.length > 0 ? logs[logs.length - 1].agent : 'Starting up';
 
     useEffect(() => {
-        if (!sessionId) {
+        if (!analysisId) {
             setStatus('error');
-            setError('No session ID provided');
+            setError('No analysis ID provided');
             return;
         }
 
-        let pollInterval: NodeJS.Timeout;
+        let finished = false;
+        const timers: {
+            poll?: ReturnType<typeof setInterval>;
+            reconnect?: ReturnType<typeof setTimeout>;
+        } = {};
 
+        const finish = () => {
+            finished = true;
+            clearInterval(timers.poll);
+            clearTimeout(timers.reconnect);
+            wsRef.current?.close();
+        };
+
+        // Polling is the source of truth for completion; the WebSocket only adds live progress
         const checkStatus = async () => {
             try {
-                const res = await fetch(`${API_BASE}/locus/checkout/${sessionId}/status`);
-                if (!res.ok) throw new Error('Failed to check status');
-                const data = await res.json();
-
-                if (data.analysis_result) {
-                    setResult(data.analysis_result);
-                    setStatus('completed');
-                    clearInterval(pollInterval);
+                const res = await fetch(`${API_BASE}/analyses/${analysisId}`);
+                if (res.status === 404) {
+                    setError('Analysis not found. It may have expired after a server restart.');
+                    setStatus('error');
+                    finish();
                     return;
                 }
+                if (!res.ok) throw new Error('Failed to check status');
+                const job = await res.json();
 
-                if (data.paid) {
-                    setStatus('live');
-                    clearInterval(pollInterval);
-                    connectWS();
+                if (job.status === 'completed' && job.result) {
+                    setResult(job.result);
+                    setStatus('completed');
+                    finish();
+                } else if (job.status === 'failed') {
+                    setError(job.error || 'Analysis failed');
+                    setStatus('error');
+                    finish();
+                } else {
+                    setStatus(prev => (prev === 'connecting' ? 'live' : prev));
                 }
-            } catch (err: any) {
+            } catch (err) {
                 console.error('Polling error:', err);
             }
         };
@@ -82,39 +112,36 @@ function ReportContent() {
             ws.onmessage = (event) => {
                 try {
                     const msg = JSON.parse(event.data);
-                    if (msg.type === 'analysis_log' && (msg.session_id === sessionId || msg.analysis_id === sessionId)) {
+                    if (msg.analysis_id !== analysisId) return;
+                    if (msg.type === 'analysis_log') {
                         setLogs(prev => [...prev, msg.data]);
-                    }
-                    if (msg.type === 'analysis_complete' && (msg.session_id === sessionId || msg.analysis_id === sessionId)) {
+                    } else if (msg.type === 'analysis_complete') {
                         setResult(msg.data);
                         setStatus('completed');
-                        ws.close();
-                    }
-                    if (msg.type === 'analysis_error' && (msg.session_id === sessionId || msg.analysis_id === sessionId)) {
-                        setError(msg.data.error || 'Analysis failed');
+                        finish();
+                    } else if (msg.type === 'analysis_error') {
+                        setError(msg.data?.error || 'Analysis failed');
                         setStatus('error');
-                        ws.close();
+                        finish();
                     }
                 } catch (err) {
-                    console.error('WS Message error:', err);
+                    console.error('WS message error:', err);
                 }
             };
 
             ws.onclose = () => {
-                if (status === 'live') {
-                    setTimeout(connectWS, 3000);
+                if (!finished) {
+                    timers.reconnect = setTimeout(connectWS, 3000);
                 }
             };
         };
 
-        pollInterval = setInterval(checkStatus, 3000);
+        connectWS();
         checkStatus();
+        timers.poll = setInterval(checkStatus, 5000);
 
-        return () => {
-            clearInterval(pollInterval);
-            wsRef.current?.close();
-        };
-    }, [sessionId]);
+        return finish;
+    }, [analysisId]);
 
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -132,18 +159,18 @@ function ReportContent() {
         );
     }
 
-    if (status === 'payment') {
+    if (status === 'connecting') {
         return (
             <div className="war-room center">
                 <div className="hex-loader">
                     <div className="hex"></div>
                     <Loader2 className="animate-spin loader-icon" size={32} />
                 </div>
-                <h1 className="mt-8">Confirming Settlement</h1>
-                <p className="lead">Verifying USDC transfer on Base network...</p>
+                <h1 className="mt-8">Convening the Quorum</h1>
+                <p className="lead">Connecting to the agent pipeline...</p>
                 <div className="meta-badge">
                     <Hash size={12} />
-                    <span>SESSION: {sessionId?.slice(0, 8)}</span>
+                    <span>ANALYSIS: {analysisId?.slice(0, 8)}</span>
                 </div>
                 <style jsx>{styles}</style>
             </div>
@@ -157,7 +184,7 @@ function ReportContent() {
                     <div className="brand"><span className="dot"></span>QUORUM / DEBATE_ROOM</div>
                     <div className="session-info">
                         <div className="info-item"><Clock size={12} /> <span>{new Date().toLocaleTimeString()} UTC</span></div>
-                        <div className="info-item"><Hash size={12} /> <span>{sessionId?.slice(0, 8)}</span></div>
+                        <div className="info-item"><Hash size={12} /> <span>{analysisId?.slice(0, 8)}</span></div>
                     </div>
                 </div>
 
@@ -172,7 +199,7 @@ function ReportContent() {
                             {logs.length === 0 && (
                                 <div className="init-msg">
                                     <Cpu className="animate-pulse" />
-                                    <p>Initializing 13-agent consensus engine...</p>
+                                    <p>Initializing 12-agent consensus engine...</p>
                                 </div>
                             )}
                             {logs.map((log, i) => (
@@ -200,29 +227,27 @@ function ReportContent() {
                                 <div className="p-bar-bg">
                                     <div className="p-bar-fill" style={{ width: `${progress}%` }}></div>
                                 </div>
-                                <div className="sub-label">{Math.floor(progress/7.7)} of 13 Agents Complete</div>
+                                <div className="sub-label">{doneAgents.size} of {AGENTS.length} Agents Complete</div>
                             </div>
 
                             <div className="gauge-grid">
                                 <div className="gauge-box">
-                                    <div className="g-label">MARKET_VOL</div>
-                                    <div className="g-val">NOMINAL</div>
-                                    <div className="g-track"><div className="g-fill" style={{ width: '40%' }}></div></div>
+                                    <div className="g-label">EVENTS_RECEIVED</div>
+                                    <div className="g-val">{logs.length}</div>
                                 </div>
                                 <div className="gauge-box">
-                                    <div className="g-label">SENTIMENT_HEAT</div>
-                                    <div className="g-val">HIGH</div>
-                                    <div className="g-track"><div className="g-fill danger" style={{ width: '85%' }}></div></div>
+                                    <div className="g-label">LAST_ACTIVE</div>
+                                    <div className="g-val">{currentAgent.toUpperCase()}</div>
                                 </div>
                             </div>
 
                             <div className="active-agents">
                                 <h3>ACTIVE_PROCESSORS</h3>
                                 <div className="agent-list">
-                                    {['MARKET', 'NEWS', 'FUNDAMENTAL', 'MACRO', 'BULL_1', 'BEAR_1', 'JUDGE'].map(a => (
-                                        <div key={a} className={`agent-chip ${logs.some(l => l.agent?.includes(a)) ? 'done' : 'waiting'}`}>
-                                            {logs.some(l => l.agent?.includes(a)) ? <CheckCircle2 size={10} /> : <Zap size={10} />}
-                                            {a}
+                                    {AGENTS.map(a => (
+                                        <div key={a.name} className={`agent-chip ${doneAgents.has(a.name) ? 'done' : 'waiting'}`}>
+                                            {doneAgents.has(a.name) ? <CheckCircle2 size={10} /> : <Zap size={10} />}
+                                            {a.short}
                                         </div>
                                     ))}
                                 </div>
@@ -263,7 +288,7 @@ function ReportContent() {
             {/* Print-only Header */}
             <div className="print-only-header">
                 <div className="brand"><span className="dot"></span>QUORUM / INVESTMENT_REPORT</div>
-                <div className="print-date">Generated on: {new Date().toLocaleDateString()} · Session: {sessionId?.slice(0, 8)}</div>
+                <div className="print-date">Generated on: {new Date().toLocaleDateString()} · Analysis: {analysisId?.slice(0, 8)}</div>
             </div>
 
             <div className="report-main">
@@ -356,15 +381,15 @@ const styles = `
         padding: 40px;
     }
     .lead { color: #8a909c; font-size: 1.1rem; margin-top: 12px; max-width: 500px; }
-    
+
     .hex-loader { position: relative; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; }
-    .hex { 
-        position: absolute; width: 100%; height: 100%; border: 2px solid #6c63ff22; 
-        clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); 
+    .hex {
+        position: absolute; width: 100%; height: 100%; border: 2px solid #6c63ff22;
+        clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
         animation: spin 4s linear infinite;
     }
     .loader-icon { color: #6c63ff; }
-    
+
     .meta-badge {
         margin-top: 24px; display: flex; align-items: center; gap: 8px;
         background: #161a23; border: 1px solid #262b38; padding: 6px 12px;
@@ -400,7 +425,7 @@ const styles = `
     .pane-header .title { display: flex; align-items: center; gap: 10px; font-size: 0.75rem; font-weight: 700; color: #8a909c; }
     .status-badge { font-size: 0.65rem; font-weight: 800; padding: 4px 8px; background: #f8717115; color: #f87171; border: 1px solid #f8717140; }
     .pulse { display: inline-block; width: 6px; height: 6px; background: #f87171; border-radius: 50%; margin-right: 6px; animation: blink 1s infinite; }
-    
+
     .terminal-view {
         flex: 1; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
         background: radial-gradient(circle at top right, #6c63ff05, transparent);
@@ -413,7 +438,7 @@ const styles = `
 
     .stats-pane { background: #10131a; }
     .stats-content { padding: 32px; display: flex; flex-direction: column; gap: 32px; }
-    
+
     .progress-card .label-row { display: flex; justify-content: space-between; font-size: 0.75rem; font-weight: 700; margin-bottom: 10px; }
     .p-bar-bg { height: 6px; background: #262b38; border-radius: 3px; overflow: hidden; }
     .p-bar-fill { height: 100%; background: #6c63ff; box-shadow: 0 0 15px #6c63ff; transition: width 0.5s ease; }
@@ -429,15 +454,15 @@ const styles = `
 
     .active-agents h3 { font-size: 0.7rem; color: #8a909c; margin-bottom: 16px; }
     .agent-list { display: flex; flex-wrap: wrap; gap: 8px; }
-    .agent-chip { 
-        display: flex; align-items: center; gap: 6px; font-size: 0.65rem; 
+    .agent-chip {
+        display: flex; align-items: center; gap: 6px; font-size: 0.65rem;
         padding: 6px 10px; border-radius: 4px; border: 1px solid #262b38;
     }
     .agent-chip.done { background: #34d39910; border-color: #34d39940; color: #34d399; }
     .agent-chip.waiting { background: #161a23; color: #444; }
 
     .warning-box {
-        display: flex; gap: 12px; padding: 16px; background: #fbbf2408; 
+        display: flex; gap: 12px; padding: 16px; background: #fbbf2408;
         border: 1px solid #fbbf2430; border-radius: 4px; font-size: 0.7rem; color: #fbbf24bb;
     }
 
@@ -446,7 +471,7 @@ const styles = `
     .report-hero { display: flex; justify-content: space-between; align-items: center; margin-bottom: 48px; }
     .t-main { font-family: 'Space Grotesk'; font-size: 4rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
     .t-sub { color: #8a909c; font-size: 0.9rem; margin-top: 8px; letter-spacing: 0.1em; }
-    
+
     .score-box { text-align: right; }
     .s-label { font-size: 0.7rem; color: #8a909c; margin-bottom: 8px; }
     .s-val { font-size: 3.5rem; font-weight: 800; font-family: 'Space Grotesk'; color: #6c63ff; line-height: 1; }
@@ -455,9 +480,9 @@ const styles = `
     .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
     .card { background: #10131a; border: 1px solid #262b38; padding: 32px; border-radius: 8px; }
     .card h3 { display: flex; align-items: center; gap: 12px; font-size: 0.8rem; color: #8a909c; margin-bottom: 24px; }
-    
+
     .thesis p { font-size: 1.05rem; line-height: 1.75; color: #cfd3dc; }
-    .approved-badge { 
+    .approved-badge {
         margin-top: 32px; display: inline-flex; align-items: center; gap: 10px;
         background: #34d39910; border: 1px solid #34d39940; color: #34d399;
         padding: 8px 16px; font-size: 0.75rem; font-weight: 700;
@@ -497,7 +522,7 @@ const styles = `
     @media print {
         @page { size: A4; margin: 20mm; }
         .no-print { display: none !important; }
-        .print-only-header { 
+        .print-only-header {
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px solid #262b38;
         }

@@ -4,21 +4,33 @@ import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
+// Deterministic PRNG (mulberry32) so particle layout is pure and stable across renders
+function createRandom(seed: number) {
+    return () => {
+        seed |= 0;
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
 function ParticleField() {
     const ref = useRef<THREE.Points>(null);
 
     const geometry = useMemo(() => {
         const count = 3000;
+        const random = createRandom(42);
         const positions = new Float32Array(count * 3);
         const colors = new Float32Array(count * 3);
 
         for (let i = 0; i < count; i++) {
             const i3 = i * 3;
-            positions[i3] = (Math.random() - 0.5) * 20;
-            positions[i3 + 1] = (Math.random() - 0.5) * 20;
-            positions[i3 + 2] = (Math.random() - 0.5) * 20;
+            positions[i3] = (random() - 0.5) * 20;
+            positions[i3 + 1] = (random() - 0.5) * 20;
+            positions[i3 + 2] = (random() - 0.5) * 20;
 
-            const t = Math.random();
+            const t = random();
             colors[i3] = 0.42 * (1 - t) + 0.0 * t;
             colors[i3 + 1] = 0.39 * (1 - t) + 0.9 * t;
             colors[i3 + 2] = 1.0;
