@@ -19,7 +19,8 @@
 <p align="center">
   <a href="https://quorum-frontend-74691596771.us-central1.run.app">Live demo</a> ·
   <a href="https://quorum-backend-74691596771.us-central1.run.app/docs">API docs</a> ·
-  <a href="docs/API_REFERENCE.md">API reference</a>
+  <a href="docs/API_REFERENCE.md">API reference</a> ·
+  <a href="docs/DEPLOY_RENDER.md">Deploy on Render</a>
 </p>
 
 ---
@@ -186,6 +187,10 @@ python -m pytest
 ```
 
 The tests run offline. They use a fake pipeline and fake LLM clients, so no API keys are needed. CI runs these tests plus `eslint`, `tsc` and `next build` on every push.
+
+## Deployment
+
+Quorum can be deployed directly to [Render](https://render.com) using the included [`render.yaml`](render.yaml) Blueprint or as standalone Web Services. See the full step-by-step guide in [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md).
 
 ## Project structure
 

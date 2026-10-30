@@ -1,0 +1,36 @@
+services:
+  # ─── Quorum Backend (FastAPI + LangGraph) ──────────────────────
+  - type: web
+    name: quorum-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false # Set in Render Dashboard -> Environment
+      - key: CORS_ORIGINS
+        value: "http://localhost:3000,http://127.0.0.1:3000" # Add frontend onrender URL here
+      - key: SCANNER_ENABLED
+        value: "false"
+      - key: PRICE_POLL_INTERVAL
+        value: "15"
+
+  # ─── Quorum Frontend (Next.js 16) ──────────────────────────────
+  - type: web
+    name: quorum-frontend
+    runtime: node
+    rootDir: frontend
+    plan: free
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20.18.0"
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # Set to https://quorum-backend.onrender.com
+      - key: NEXT_PUBLIC_WS_URL
+        sync: false # Set to wss://quorum-backend.onrender.com/ws/live
