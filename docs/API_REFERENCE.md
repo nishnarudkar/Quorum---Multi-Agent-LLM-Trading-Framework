@@ -10,7 +10,7 @@ Interactive docs: `https://quorum-backend-74691596771.us-central1.run.app/docs`
 
 ## Authentication
 
-No authentication required for the current version. All endpoints are open.
+No authentication is required. Deploy behind your own auth layer if you expose trading endpoints publicly.
 
 ---
 
@@ -33,15 +33,13 @@ Health and version info.
 
 ### GET /health
 
-System health check including Locus wallet status.
+System health check.
 
 ```json
 {
   "status": "healthy",
   "pipeline_ready": true,
   "db_ready": true,
-  "locus_ready": true,
-  "locus_wallet": "0x...",
   "timestamp": "2025-05-03T10:00:00"
 }
 ```
@@ -50,7 +48,7 @@ System health check including Locus wallet status.
 
 ### POST /analyze
 
-Run the full 13-agent pipeline directly (no payment required).
+Run the full 12-agent pipeline and wait for the result. For UIs, prefer `POST /analyses`, which returns immediately.
 
 **Request:**
 ```json
@@ -75,6 +73,40 @@ Run the full 13-agent pipeline directly (no payment required).
 - `429` — Groq rate limit. Wait 1–2 minutes.
 - `504` — Pipeline timeout (>600s).
 - `503` — Pipeline not initialized.
+
+---
+
+### POST /analyses
+
+Start an analysis in the background. Takes the same body as `POST /analyze` and returns `202 Accepted` immediately.
+
+```json
+{
+  "analysis_id": "3f6c1b2e-...",
+  "ticker": "AAPL",
+  "asset_type": "stock",
+  "status": "running"
+}
+```
+
+Progress streams over `/ws/live` as `analysis_log` events tagged with this `analysis_id`.
+
+---
+
+### GET /analyses/{analysis_id}
+
+Poll a background analysis. `status` is `running`, `completed` or `failed`. Completed results are also persisted, so they can still be fetched after a server restart.
+
+```json
+{
+  "analysis_id": "3f6c1b2e-...",
+  "ticker": "AAPL",
+  "asset_type": "stock",
+  "status": "completed",
+  "result": { "trade_signal": { "action": "buy", "confidence": 0.72 }, "...": "..." },
+  "error": null
+}
+```
 
 ---
 
@@ -270,136 +302,6 @@ Historical accuracy stats per agent.
     "last_updated": "2025-05-03T09:45:00"
   }
 ]
-```
-
----
-
-## Locus / LocusFounder
-
-### GET /locus/business
-
-Public storefront — machine-readable service catalog.
-
-```json
-{
-  "name": "Quorum Trading Intelligence",
-  "description": "Autonomous AI trading research firm...",
-  "services": [
-    {
-      "id": "analysis_single",
-      "name": "Single Analysis Report",
-      "description": "Full 13-agent analysis...",
-      "price_usdc": 5.00,
-      "delivery": "~3 minutes"
-    }
-  ],
-  "wallet_address": "0x...",
-  "payment_currency": "USDC",
-  "payment_chain": "Base"
-}
-```
-
----
-
-### GET /locus/wallet
-
-Agent wallet balance.
-
-```json
-{
-  "balance_usdc": 10.00,
-  "wallet_address": "0x...",
-  "currency": "USDC",
-  "chain": "Base"
-}
-```
-
----
-
-### GET /locus/revenue
-
-Revenue summary across all checkout sessions.
-
-```json
-{
-  "total_sessions": 6,
-  "paid_sessions": 5,
-  "fulfilled_sessions": 4,
-  "pending_sessions": 1,
-  "total_revenue_usdc": 25.00,
-  "fulfilled_revenue_usdc": 20.00,
-  "price_per_analysis_usdc": 5.00
-}
-```
-
----
-
-### POST /locus/checkout
-
-Create a $5 USDC checkout session.
-
-**Request:**
-```json
-{
-  "ticker": "AAPL",
-  "asset_type": "stock",
-  "selected_analysts": ["market", "news"]
-}
-```
-
-**Response:**
-```json
-{
-  "session_id": "abc123...",
-  "ticker": "AAPL",
-  "asset_type": "stock",
-  "price_usdc": 5.00,
-  "checkout_url": "https://checkout.paywithlocus.com/...",
-  "status": "pending",
-  "created_at": "2025-05-03T10:00:00",
-  "expires_at": "2025-05-03T10:30:00"
-}
-```
-
----
-
-### GET /locus/checkout/{session_id}
-
-Get session state.
-
----
-
-### GET /locus/checkout/{session_id}/status
-
-Poll payment status. Returns `paid: true` once confirmed. Automatically triggers the analysis pipeline on first confirmation.
-
-**Response (paid):**
-```json
-{
-  "paid": true,
-  "status": "paid",
-  "analysis_triggered": true,
-  "analysis_id": "xyz789...",
-  "session_id": "abc123...",
-  "ticker": "AAPL",
-  "tx_hash": "0x..."
-}
-```
-
----
-
-### POST /locus/mock-pay/{session_id}
-
-Simulate a USDC payment for development and demo purposes. Only works for mock sessions.
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Mock payment confirmed",
-  "session_id": "abc123...",
-  "next": "/locus/checkout/abc123.../status"
-}
 ```
 
 ---
