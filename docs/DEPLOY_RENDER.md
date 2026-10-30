@@ -96,3 +96,4 @@ Once your frontend is deployed, copy its Render URL (e.g., `https://quorum-front
 - **WebSockets on Render**: Render supports persistent HTTP/1.1 WebSockets natively on both Free and Paid tiers.
 - **Port Handling**: Render automatically injects the `$PORT` environment variable (default 10000). The Quorum backend Dockerfile dynamically binds to `${PORT:-8000}`, so no manual port configuration is needed.
 - **Persistence**: SQLite databases (`quorum.db`) and cache files in container storage are ephemeral on the free tier. If you require persistent trade logs across container restarts, attach a **Render Persistent Disk** mounted at `/app/db`.
+

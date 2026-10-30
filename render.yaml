@@ -34,3 +34,4 @@ services:
         sync: false # Set to https://quorum-backend.onrender.com
       - key: NEXT_PUBLIC_WS_URL
         sync: false # Set to wss://quorum-backend.onrender.com/ws/live
+
